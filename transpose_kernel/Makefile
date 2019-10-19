@@ -26,7 +26,7 @@ AOCFLAGS   := -g -v -D LOGN=$(LOGN) -global-ring -duplicate-ring -cl-single-prec
 FPFLAGS    :=
 EMUFLAGS   := -march=emulator -legacy-emulator
 SIMFLAGS   := -march=simulator 
-INTERFLAGS := -report -rtl
+REPORTFLAGS := -report -rtl
 PROFFLAGS  := -fp-relaxed -profile=all
 SYNFLAGS   := -fp-relaxed -seed=7
 
@@ -59,7 +59,7 @@ endif
 
 TARGET_EMU_DIR   ?= $(TARGET_DIR)/emulation/emu$(LOGN)
 TARGET_SIM_DIR   ?= $(TARGET_DIR)/simulation/sim$(LOGN)
-TARGET_INTER_DIR ?= $(TARGET_DIR)/report/rep$(LOGN)
+TARGET_REPORT_DIR ?= $(TARGET_DIR)/report/rep$(LOGN)
 TARGET_PROF_DIR  ?= $(TARGET_DIR)/profile/prof$(LOGN)
 TARGET_SYN_DIR   ?= $(TARGET_DIR)/synthesis/syn$(LOGN)
 	
@@ -79,7 +79,7 @@ help:
 	$(info ***************************************************)
 	$(info emulate  =  Compile kernels for emulation)
 	$(info syn      =  Synthesize kernels  )
-	$(info inter    =  Intermediate Report )
+	$(info report   =  Intermediate Report )
 	$(info profile  =  Profile kernels  )
 	$(info sim      =  Simulate kernels )
 	$(info clean    =  deletes syn folders and files)
@@ -97,14 +97,14 @@ help:
 # Kernel Emulation
 emulate: info
 	mkdir -p $(TARGET_EMU_DIR)
-	aoc $(FPFLAGS) $(AOCFLAGS) $(EMUFLAGS) $(KERNEL_SRCS) -o $(TARGET_EMU_DIR)/$(TARGET_KERNEL)
+	aoc $(FPFLAGS) $(AOCFLAGS) $(EMUFLAGS) -board=$(BOARD) $(KERNEL_SRCS) -o $(TARGET_EMU_DIR)/$(TARGET_KERNEL)
 #	ioc64 $(FPFLAGS) $(AOCFLAGS) $(EMUFLAGS) $(KERNEL_SRCS) -o $(TARGET_EMU_DIR)/$(TARGET_KERNEL)
 	
 
 # kernel intermediate compilation for report
-inter: info
-	mkdir -p $(TARGET_INTER_DIR)
-	aoc $(FPFLAGS) $(AOCFLAGS) $(INTERFLAGS) $(KERNEL_SRCS) -o $(TARGET_INTER_DIR)/$(TARGET_INTERMEDIATE)
+report: info
+	mkdir -p $(TARGET_REPORT_DIR)
+	aoc $(FPFLAGS) $(AOCFLAGS) $(REPORTFLAGS) -board=$(BOARD) $(KERNEL_SRCS) -o $(TARGET_REPORT_DIR)/$(TARGET_INTERMEDIATE)
 
 # Kernel Simulation - Only single precision floating point ops
 sim: info 
@@ -114,7 +114,7 @@ sim: info
 # Kernel Profiling - Only single precision floating point ops
 profile: info 
 	mkdir -p $(TARGET_PROF_DIR)
-	aoc -D __FPGA_SP $(AOCFLAGS) $(PROFFLAGS) $(KERNEL_SRCS) -o $(TARGET_PROF_DIR)/$(TARGET_KERNEL) 
+	aoc -D __FPGA_SP $(AOCFLAGS) $(PROFFLAGS) -board=$(BOARD) $(KERNEL_SRCS) -o $(TARGET_PROF_DIR)/$(TARGET_KERNEL) 
 	#@echo aoc -D __FPGA_SP $(AOCFLAGS) $(PROFFLAGS) --board $(BOARD) $(KERNEL_SRCS) -o $(TARGET_PROF_DIR)/$(TARGET_KERNEL) > profile_$$(date +%Y%m%d%H%M%S).log 2>&1
 
 # Kernel Synthesis - Only single precision floating point ops
@@ -135,8 +135,7 @@ info:
 	$(info -------------------------------)
 	$(info QUARTUS VERSION    : $(QUARTUS_VERSION))
 	$(info BOARD              : $(BOARD))
-	$(info LOG FFT SIZE       : $(LOGN))
-	$(info PRECISION          : $(FPGA_DP) (0/sp 1/dp))
+	$(info LOG MATRIX SIZE    : $(LOGN))
 	$(info -------------------------------)
 
 .PHONY : clean emuclean fullclean syn profile sim inter emulate help default info # ---------------
