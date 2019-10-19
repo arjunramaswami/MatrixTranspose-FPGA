@@ -13,6 +13,7 @@ endif
 
 # Variables
 LOGN := 6
+BOARD := p520_hpc_sg280l     # Stratix 10
 #BOARD := p520_max_sg280l     # Stratix 10
 #BOARD := p385a_sch_ax115    # Arria 10
 FPGA_DP := 0
@@ -23,7 +24,7 @@ AOC := aoc
 # Compiler Flags
 AOCFLAGS   := -g -v -D LOGN=$(LOGN) -global-ring -duplicate-ring -cl-single-precision-constant  -no-interleaving=default
 FPFLAGS    :=
-EMUFLAGS   := -march=emulator
+EMUFLAGS   := -march=emulator -legacy-emulator
 SIMFLAGS   := -march=simulator 
 INTERFLAGS := -report -rtl
 PROFFLAGS  := -fp-relaxed -profile=all
@@ -53,7 +54,7 @@ ifeq ($(FPGA_DP),1)
  	FPFLAGS :=  $(FPFLAGS) -fpc
 else
 	TARGET_DIR := $(TARGET_SP_DIR)
-	FPFLAGS := $(FPFLAGS) -fp-relaxed -D __FPGA_SP
+	FPFLAGS := $(FPFLAGS) 
 endif
 
 TARGET_EMU_DIR   ?= $(TARGET_DIR)/emulation/emu$(LOGN)
@@ -97,6 +98,8 @@ help:
 emulate: info
 	mkdir -p $(TARGET_EMU_DIR)
 	aoc $(FPFLAGS) $(AOCFLAGS) $(EMUFLAGS) $(KERNEL_SRCS) -o $(TARGET_EMU_DIR)/$(TARGET_KERNEL)
+#	ioc64 $(FPFLAGS) $(AOCFLAGS) $(EMUFLAGS) $(KERNEL_SRCS) -o $(TARGET_EMU_DIR)/$(TARGET_KERNEL)
+	
 
 # kernel intermediate compilation for report
 inter: info
