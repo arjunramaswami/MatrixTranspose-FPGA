@@ -6,39 +6,6 @@
 #define LOGN 6
 #endif
 
-#ifdef DEBUG
-#define STRINGIFY_VALUE(x) #x    
-#define STRINGIFY_NAME_VALUE(var) #var "=" STRINGIFY_VALUE(var)   // '#' returns the argument as a string (stringifies the variable)
-#pragma message(STRINGIFY_NAME_VALUE(LOGN))                       // requires string as message
-#endif
-
-typedef struct {
-   float2 i0;
-   float2 i1;
-   float2 i2;
-   float2 i3;
-   float2 i4;
-   float2 i5;
-   float2 i6;
-   float2 i7;
-} float2x8;
-
-#ifdef __FPGA_SP
-  #ifdef DEBUG
-    #pragma message "Single Precision Activated"
-  #endif
-
-  typedef float2 cmplex;
-  typedef float2x8 cmplex8;
-#else
-  #ifdef DEBUG
-    #pragma message "Double Precision Activated"
-  #endif
-
-  typedef double2 cmplex;
-  #pragma OPENCL EXTENSION cl_khr_fp64 : enable
-#endif
-
 // Macros for the 8 point 1d FFT
 #define LOGPOINTS 3
 #define POINTS (1 << LOGPOINTS)
@@ -49,8 +16,8 @@ typedef struct {
 #define UNROLL_FACTOR 8 
 
 #pragma OPENCL EXTENSION cl_intel_channels : enable
-channel cmplex chaninTranspose[8] __attribute__((depth(8)));
-channel cmplex chanoutTranspose[8] __attribute__((depth(8)));
+channel float2 chaninTranspose[8] __attribute__((depth(8)));
+channel float2 chanoutTranspose[8] __attribute__((depth(8)));
 
 // --- CODE -------------------------------------------------------------------
 int bit_reversed(int x, int bits) {
@@ -66,9 +33,9 @@ int bit_reversed(int x, int bits) {
 
 
 __attribute__((reqd_work_group_size((1 << LOGN), 1, 1)))
-kernel void fetch(global const volatile cmplex * restrict src) {
+kernel void fetch(global const volatile float2 * restrict src) {
   const int N = ( 1 << LOGN);
-  local cmplex buf[8 * N];
+  local float2 buf[8 * N];
 
   unsigned where = get_global_id(0) << LOGPOINTS;
   unsigned where_global = where;
@@ -99,12 +66,12 @@ kernel void fetch(global const volatile cmplex * restrict src) {
 
 // Kernel that fetches data from global memory 
 /*
-kernel void fetch(global const volatile cmplex * restrict src) {
+kernel void fetch(global const volatile float2 * restrict src) {
   const unsigned N = (1 << LOGN); 
   const unsigned buf_len = 8 * 16;
 
   for(unsigned k = 0; k < N * N / (8 * 16); k++){ //  N * N * N / REPL
-    cmplex8 buf[16];
+    float28 buf[16];
 
     for(unsigned i = 0; i < 16; i++){
       unsigned where = (k * buf_len) + (i * 8);
@@ -131,7 +98,7 @@ kernel void fetch(global const volatile cmplex * restrict src) {
   }
 
   for(unsigned k = 0; k < N * N / 8; k++){ //  N * N * N / REPL
-    cmplex buf[8];
+    float2 buf[8];
     #pragma unroll 8
     for(unsigned i = 0; i < 8; i++){
       buf[i] =  src[(k << LOGN) + i];    
@@ -141,7 +108,7 @@ kernel void fetch(global const volatile cmplex * restrict src) {
   }
   for(unsigned k = 0; k < N; k++){ //  N * N * N / REPL
 
-    cmplex buf[N * 8];
+    float2 buf[N * 8];
     #pragma unroll 
     for(unsigned i = 0; i < N; i++){
       buf[i & ((1<<LOGN)-1)] =  src[(k << LOGN) + i];    
@@ -217,11 +184,11 @@ kernel void transpose(int iter) {
   }
 
   const unsigned buf_len = (N * N * 2) - 16;
-  cmplex transpose_buf[buf_len];
+  float2 transpose_buf[buf_len];
   unsigned exit_condition = 2 * (buf_len / 8);
 
   for (unsigned step = 0; step < iter * exit_condition; step++) {
-    cmplex8 data;
+    float28 data;
 
     // push data to register
     if( step < ( N * N / 8)){
@@ -260,7 +227,7 @@ kernel void transpose(int iter) {
     for(unsigned j = i; j < N; j++){
       unsigned src = i;
       unsigned dest = (col * N) + row;
-      cmplex tmp = transpose_buf[src];
+      float2 tmp = transpose_buf[src];
       transpose_buf[src] = transpose_buf[dest];
       transpose_buf[dest] = tmp;
     }
@@ -268,7 +235,7 @@ kernel void transpose(int iter) {
   */
 
 __attribute__((reqd_work_group_size((1 << LOGN), 1, 1)))
-kernel void store(global cmplex * restrict dest) {
+kernel void store(global float2 * restrict dest) {
   const int N = (1 << LOGN);
   local float2 buf[8 * N];
 
@@ -299,13 +266,13 @@ kernel void store(global cmplex * restrict dest) {
 }
 
 /*
-kernel void store(global cmplex * restrict dest){
+kernel void store(global float2 * restrict dest){
   const unsigned N = (1 << LOGN);
 
   for(unsigned k = 0; k < N; k++){ 
     // printf("Storing %d rows\n", k);
 
-    cmplex buf[N];
+    float2 buf[N];
     for (unsigned i = 0; i < (N / 8); i++){
       #pragma unroll
       for(unsigned j = 0; j < 8; j++){
