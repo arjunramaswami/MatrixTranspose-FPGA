@@ -46,12 +46,12 @@ void fpga_final_(){
 }
 
 /******************************************************************************
- * \brief  check whether FFT3d can be computed on the FPGA or not. This depends 
+ * \brief  check whether matrix transposition can be computed on the FPGA or not. This depends 
  *         on the availability of bitstreams whose sizes are for now listed here 
- *         If the fft sizes are found and the FPGA is not setup before, it is done
+ *         If the matrix sizes are found and the FPGA is not setup before, it is done
  * \param  data_path - path to the data directory
- * \param  N - integer pointer to the size of the FFT3d
- * \retval true if fft3d size supported
+ * \param  N - integer pointer to the size of the matrix
+ * \retval true if matrix size supported
  *****************************************************************************/
 int fpga_check_bitstream_(char *data_path, int N[2]){
     static int transpose_size[2] = {0, 0};
@@ -71,11 +71,11 @@ int fpga_check_bitstream_(char *data_path, int N[2]){
           init_program(transpose_size, data_path);
         }
         else if( transpose_size[0] == N[0] && transpose_size[1] == N[1] ){
-          // if same fft size as previous
+          // if same matrix size as previous
           // dont do anything
         }
         else{
-            // else if different fft size as previous
+            // else if different matrix size as previous
             // cleanup and initialize
           transpose_size[0] = N[0];
           transpose_size[1] = N[1];
@@ -92,20 +92,20 @@ int fpga_check_bitstream_(char *data_path, int N[2]){
 }
 
 /******************************************************************************
- * \brief   compute an in-place single precision complex 3D-FFT on the FPGA
- * \param   N   : integer pointer to size of FFT3d  
+ * \brief   compute an in-place single precision matrix transposition on the FPGA
+ * \param   N   : integer pointer to size of matrix
  * \param   din : complex input/output single precision data pointer 
- * \retval double : time taken for FFT3d compute 
+ * \retval double : time taken for transposition
  *****************************************************************************/
 double fpga_matrix_transpose_(int N[2], float2 *din, unsigned iter) {
   return fpga_run(N, din, iter);
 }
 
 /******************************************************************************
- * \brief   Execute a single precision complex FFT3d
- * \param   N       : integer pointer to size of FFT3d  
+ * \brief   Transpose a 2d matrix
+ * \param   N       : integer pointer to size of matrix
  * \param   din     : complex input/output single precision data pointer 
- * \retval double : time taken for FFT3d compute 
+ * \retval double : time taken for matrix transposition
  *****************************************************************************/
 static double fpga_run(int N[2], float2 *c_in, unsigned iter) {
   cl_int status = 0;

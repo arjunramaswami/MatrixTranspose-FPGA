@@ -20,7 +20,7 @@ static const char *const usage[] = {
 };
 
 void main(int argc, const char **argv) {
-  unsigned i = 0, j = 0, iter = 1;
+  unsigned i = 0, j = 0, iter = 10000;
   double fpga_runtime = 0.0, fpga_computetime = 0.0, cpu_runtime = 0.0;
   char *bitstream_path = "../transpose_kernel/fpgabitstream";
   float2 *matrix_data, *verify_data;
@@ -44,7 +44,7 @@ void main(int argc, const char **argv) {
   printf("Matrix Size : %d %d\n", N[0], N[1]);
   printf("------------------------------\n\n");
 
-  // Allocate mem for input buffer and fftw buffer
+  // Allocate mem for input buffer and verification buffer
   matrix_data = (float2 *)malloc(sizeof(float2) * iter * N[0] * N[1]);
   verify_data = (float2 *)malloc(sizeof(float2) * iter * N[0] * N[1]);
 
@@ -71,19 +71,21 @@ void main(int argc, const char **argv) {
     exit(1);
   }
 
-  // execute fpga fft3d
+  // execute fpga matrix transpose
   double start = getTimeinMilliSec();
   fpga_computetime += fpga_matrix_transpose_(N, matrix_data, iter);
   double stop = getTimeinMilliSec();
   fpga_runtime += stop - start;
   
   // Else randomly generate values and write to a file 
+  /*
   printf("Transposed data \n");
   for (j = 0; j < iter; j++){
    for (i = 0; i < (N[0] * N[1]); i++) {
      printf(" %d : transpose[%d] = (%f, %f)\n", i, i, matrix_data[i].x, matrix_data[i].y);
    }
   }
+  */
 
   printf("FPGA Runtime = %.4f\n", fpga_computetime);
 

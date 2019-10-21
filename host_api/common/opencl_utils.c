@@ -130,7 +130,7 @@ static int fileExists(char* filename){
  * \param   context created using device
  * \param   array of devices
  * \param   number of devices found
- * \param   size of FFT3d
+ * \param   size of matrix
  * \retval  created program or NULL if unsuccessful
  *****************************************************************************/
 cl_program getProgramWithBinary(cl_context context, const cl_device_id *devices, unsigned num_device, int N[2], char *data_path){
@@ -248,7 +248,7 @@ int getFolderPath(char **folderPath, int N[2]){
       strncpy(*folderPath, folder, strlen(folder));
     } 
     else if(N[0] == 64 && N[1] == 64){
-      char folder[] = "synthesis/syn6/";
+      char folder[] = "profile/prof6/";
       *folderPath = malloc(strlen(folder)+1);
       strncpy(*folderPath, folder, strlen(folder));
     }
