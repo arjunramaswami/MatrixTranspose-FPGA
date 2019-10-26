@@ -248,6 +248,7 @@ int getFolderPath(char **folderPath, int N[2]){
       strncpy(*folderPath, folder, strlen(folder));
     } 
     else if(N[0] == 64 && N[1] == 64){
+      //char folder[] = "synthesis/syn6/";
       char folder[] = "profile/prof6/";
       *folderPath = malloc(strlen(folder)+1);
       strncpy(*folderPath, folder, strlen(folder));

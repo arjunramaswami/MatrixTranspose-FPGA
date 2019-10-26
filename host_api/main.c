@@ -20,7 +20,7 @@ static const char *const usage[] = {
 };
 
 void main(int argc, const char **argv) {
-  unsigned i = 0, j = 0, iter = 2;
+  unsigned i = 0, j = 0, iter = 1000;
   double fpga_runtime = 0.0, fpga_computetime = 0.0, cpu_runtime = 0.0;
   char *bitstream_path = "../transpose_kernel/fpgabitstream";
   float2 *matrix_data, *verify_data;
@@ -42,8 +42,8 @@ void main(int argc, const char **argv) {
 
   printf("------------------------------\n");
   printf("Matrix Size : %d %d\n", N[0], N[1]);
+  printf("Number of matrices : %d \n", iter);
   printf("------------------------------\n\n");
-
   // Allocate mem for input buffer and verification buffer
   matrix_data = (float2 *)malloc(sizeof(float2) * iter * N[0] * N[1]);
   verify_data = (float2 *)malloc(sizeof(float2) * iter * N[0] * N[1]);

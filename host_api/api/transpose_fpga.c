@@ -105,7 +105,7 @@ double fpga_matrix_transpose_(int N[2], float2 *din, unsigned iter) {
  * \brief   Transpose a 2d matrix
  * \param   N       : integer pointer to size of matrix
  * \param   din     : complex input/output single precision data pointer 
- * \retval double : time taken for matrix transposition
+ * \retval double : time taken for matrix transposition in milliseconds
  *****************************************************************************/
 static double fpga_run(int N[2], float2 *c_in, unsigned iter) {
   cl_int status = 0;
