@@ -14,9 +14,6 @@ endif
 # Variables
 LOGN := 6
 BOARD := p520_hpc_sg280l     # Stratix 10
-#BOARD := p520_max_sg280l     # Stratix 10
-#BOARD := p385a_sch_ax115    # Arria 10
-FPGA_DP := 0
 
 # Compilers
 AOC := aoc
@@ -43,19 +40,8 @@ endif
 
 # Paths to targets
 TARGET_PATH    := fpgabitstream/transpose
-TARGET_DP_DIR  := $(TARGET_PATH)/synthesis_dp
-TARGET_SP_DIR  := $(TARGET_PATH)/synthesis_sp
-
-# Pass FPGA_DP=1 as cmd line arg to make to activate double precision compilation 
-# Only for emulation and for generating reports
-# double precision disables relaxation and rounding in floating point operations 
-ifeq ($(FPGA_DP),1)
-	TARGET_DIR := $(TARGET_DP_DIR)
- 	FPFLAGS :=  $(FPFLAGS) -fpc
-else
-	TARGET_DIR := $(TARGET_SP_DIR)
-	FPFLAGS := $(FPFLAGS) 
-endif
+TARGET_DIR  := $(TARGET_PATH)/synthesis_sp
+FPFLAGS := $(FPFLAGS) 
 
 TARGET_EMU_DIR   ?= $(TARGET_DIR)/emulation/emu$(LOGN)
 TARGET_SIM_DIR   ?= $(TARGET_DIR)/simulation/sim$(LOGN)
@@ -75,7 +61,7 @@ default: help
 
 help: 
 	$(info ***************************************************)
-	$(info Choose one of the steps to compile the FFT3d kernel)
+	$(info Choose one of the steps to compile the transposition kernel)
 	$(info ***************************************************)
 	$(info emulate  =  Compile kernels for emulation)
 	$(info syn      =  Synthesize kernels  )
@@ -89,8 +75,7 @@ help:
 	$(info ***************************************************)
 	$(info Command Line Flags with Make:					  )
 	$(info ***************************************************)
-	$(info LOGN=(4:5:6) = select the size of the fft to synthesize, default is 6. )
-	$(info FPGA_DP=1   = enables emulation with double precision floating operations)
+	$(info LOGN=(4:5:6) = select the size of the matrix to synthesize, default is 6. )
 	$(info DEBUG=1     = enables debug messages for emulation)
 	$(info ***************************************************)
 
@@ -109,7 +94,7 @@ report: info
 # Kernel Simulation - Only single precision floating point ops
 sim: info 
 	mkdir -p $(TARGET_SIM_DIR)
-	aoc -D __FPGA_SP $(AOCFLAGS) $(SIMFLAGS) $(KERNEL_SRCS) -o $(TARGET_SIM_DIR)/$(TARGET_KERNEL)
+	aoc -D __FPGA_SP $(AOCFLAGS) $(SIMFLAGS) -board=$(BOARD) $(KERNEL_SRCS) -o $(TARGET_SIM_DIR)/$(TARGET_KERNEL)
 
 # Kernel Profiling - Only single precision floating point ops
 profile: info 
@@ -120,7 +105,7 @@ profile: info
 # Kernel Synthesis - Only single precision floating point ops
 syn: info 
 	mkdir -p $(TARGET_SYN_DIR)
-	aoc -D __FPGA_SP $(AOCFLAGS) $(SYNFLAGS) $(KERNEL_SRCS) -o $(TARGET_SYN_DIR)/$(TARGET_KERNEL) 
+	aoc -D __FPGA_SP $(AOCFLAGS) $(SYNFLAGS) -board=$(BOARD) $(KERNEL_SRCS) -o $(TARGET_SYN_DIR)/$(TARGET_KERNEL) 
 	#@echo aoc -D __FPGA_SP $(AOCFLAGS) $(SYNFLAGS) --board $(BOARD) $(KERNEL_SRCS) -o $(TARGET_SYN_DIR)/$(TARGET_KERNEL) > syn_$$(date +%Y%m%d%H%M%S).log 2>&1 
 	#nohup aoc -fp-relaxed -g -v $(KERNEL_SRCS) -o $@ > test.log &
 
