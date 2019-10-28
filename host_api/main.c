@@ -20,7 +20,7 @@ static const char *const usage[] = {
 };
 
 void main(int argc, const char **argv) {
-  unsigned i = 0, j = 0, iter = 10000;
+  unsigned i = 0, j = 0, iter = 2;
   double fpga_runtime = 0.0, fpga_computetime = 0.0, cpu_runtime = 0.0;
   char *bitstream_path = "../transpose_kernel/fpgabitstream";
   float2 *matrix_data, *verify_data;
@@ -87,14 +87,13 @@ void main(int argc, const char **argv) {
   }
   */
 
-  printf("FPGA Runtime = %.4f\n", fpga_computetime);
+  printf("FPGA Runtime = %.4fms\n", fpga_computetime);
 
-  /*
   printf("\nComputing Matrix Transposition\n");
-  compute_matrix_transpose(verify_data, N);
+  compute_matrix_transpose(verify_data, N, iter);
+
   printf("\nChecking Correctness\n");
-  verify_transpose(matrix_data, verify_data, N);
-  */
+  verify_transpose(matrix_data, verify_data, N, iter);
 
   // Print performance metrics
   //compute_metrics(fpga_runtime, fpga_computetime, cpu_runtime, N);
