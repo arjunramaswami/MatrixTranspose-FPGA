@@ -37,17 +37,17 @@ kernel void fetch(global const volatile float2 * restrict src) {
   const int N = ( 1 << LOGN);
   local float2 buf[8 * N];
 
-  unsigned where = get_global_id(0) << LOGPOINTS;
-  unsigned where_global = where;
+  unsigned where_global = get_global_id(0) << LOGPOINTS;
+  unsigned where_local= get_local_id(0) << LOGPOINTS;
 
-  buf[(where & ((1 << (LOGN + LOGPOINTS)) - 1))] = src[where_global];
-  buf[(where & ((1 << (LOGN + LOGPOINTS)) - 1)) + 1] = src[where_global + 1];
-  buf[(where & ((1 << (LOGN + LOGPOINTS)) - 1)) + 2] = src[where_global + 2];
-  buf[(where & ((1 << (LOGN + LOGPOINTS)) - 1)) + 3] = src[where_global + 3];
-  buf[(where & ((1 << (LOGN + LOGPOINTS)) - 1)) + 4] = src[where_global + 4];
-  buf[(where & ((1 << (LOGN + LOGPOINTS)) - 1)) + 5] = src[where_global + 5];
-  buf[(where & ((1 << (LOGN + LOGPOINTS)) - 1)) + 6] = src[where_global + 6];
-  buf[(where & ((1 << (LOGN + LOGPOINTS)) - 1)) + 7] = src[where_global + 7];
+  buf[(where_local & ((1 << (LOGN + LOGPOINTS)) - 1))] = src[where_global];
+  buf[(where_local & ((1 << (LOGN + LOGPOINTS)) - 1)) + 1] = src[where_global + 1];
+  buf[(where_local & ((1 << (LOGN + LOGPOINTS)) - 1)) + 2] = src[where_global + 2];
+  buf[(where_local & ((1 << (LOGN + LOGPOINTS)) - 1)) + 3] = src[where_global + 3];
+  buf[(where_local & ((1 << (LOGN + LOGPOINTS)) - 1)) + 4] = src[where_global + 4];
+  buf[(where_local & ((1 << (LOGN + LOGPOINTS)) - 1)) + 5] = src[where_global + 5];
+  buf[(where_local & ((1 << (LOGN + LOGPOINTS)) - 1)) + 6] = src[where_global + 6];
+  buf[(where_local & ((1 << (LOGN + LOGPOINTS)) - 1)) + 7] = src[where_global + 7];
 
   barrier(CLK_LOCAL_MEM_FENCE);
 
