@@ -169,14 +169,16 @@ static double fpga_run(int N[2], float2 *c_in, unsigned iter) {
   status = clEnqueueNDRangeKernel(queue1, fetch_kernel, 1, 0, gws_transpose, lws_transpose, 0, NULL, NULL);
   checkError(status, "Failed to launch kernel");
 
+  /*
   size_t lws_transpose_kernel[] = {N[0] * N[1] / 8};
   size_t gws_transpose_kernel[] = {iter * N[0] * N[1] / 8}; 
   status = clEnqueueNDRangeKernel(queue2, transpose_kernel, 1, 0, gws_transpose_kernel, lws_transpose_kernel, 0, NULL, NULL);
   checkError(status, "Failed to launch kernel");
+  */
 
-  /*
   status = clEnqueueTask(queue2, transpose_kernel, 0, NULL, NULL);
   checkError(status, "Failed to launch transpose kernel");
+  /*
   status = clEnqueueTask(queue3, store_kernel, 0, NULL, NULL);
   checkError(status, "Failed to launch store kernel");
   */
