@@ -64,35 +64,44 @@ kernel void fetch(global const volatile float2 * restrict src) {
   write_channel_intel(chaninTranspose[7], buf[where_buf + 7]);
 }
 
-// Transposes fetched data; stores them to global memory
+__attribute__((max_global_work_dim(0)))
 kernel void transpose(int iter) {
   const unsigned N = (1 << LOGN);
 
-  // Perform N times N*N transpositions and transfers
-  for(unsigned p = 0; p < iter * N; p++){
+  // TODO: 8 bytes for float2 but 16 for double2
+  local float2 buf[N][N];  // buf[N][N] banked on column 
 
-    float2 buf[N][N];
+  for(unsigned j = 0; j < iter; j++){
+
     #pragma loop_coalesce
     for(unsigned i = 0; i < N; i++){
       for(unsigned k = 0; k < (N / 8); k++){
-        unsigned where_write = k * 8;
+        unsigned where_read = k * 8;
 
-        #pragma unroll
-        for( unsigned u = 0; u < 8; u++){
-          buf[i][where_write + u] = read_channel_intel(chaninTranspose[i]);
-        }
+        buf[i][where_read + 0] = read_channel_intel(chaninTranspose[0]);
+        buf[i][where_read + 1] = read_channel_intel(chaninTranspose[1]);
+        buf[i][where_read + 2] = read_channel_intel(chaninTranspose[2]);
+        buf[i][where_read + 3] = read_channel_intel(chaninTranspose[3]);
+        buf[i][where_read + 4] = read_channel_intel(chaninTranspose[4]);
+        buf[i][where_read + 5] = read_channel_intel(chaninTranspose[5]);
+        buf[i][where_read + 6] = read_channel_intel(chaninTranspose[6]);
+        buf[i][where_read + 7] = read_channel_intel(chaninTranspose[7]);
       }
     }
 
     #pragma loop_coalesce
     for(unsigned i = 0; i < N; i++){
       for(unsigned k = 0; k < (N / 8); k++){
-       unsigned where_read = (k * 8); 
+        unsigned where_write = k * 8;
 
-        #pragma unroll
-        for( unsigned u = 0; u < 8; u++){
-          write_channel_intel(chanoutTranspose[u], buf[where_read + u][i]);               
-        }
+        write_channel_intel(chanoutTranspose[0], buf[where_write + 0][i]);         
+        write_channel_intel(chanoutTranspose[1], buf[where_write + 1][i]);   
+        write_channel_intel(chanoutTranspose[2], buf[where_write + 2][i]);   
+        write_channel_intel(chanoutTranspose[3], buf[where_write + 3][i]);   
+        write_channel_intel(chanoutTranspose[4], buf[where_write + 4][i]);
+        write_channel_intel(chanoutTranspose[5], buf[where_write + 5][i]);   
+        write_channel_intel(chanoutTranspose[6], buf[where_write + 6][i]);   
+        write_channel_intel(chanoutTranspose[7], buf[where_write + 7][i]);   
       }
     }
   }
