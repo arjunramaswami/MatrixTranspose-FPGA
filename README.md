@@ -44,29 +44,44 @@ branch.
 ### Read Before Write 
 Extension to the diagonal matrix transposition method that is still in progress.
 
-## Modelling 2D Matrix Transposition
+## Modelling Performance
 
+Assume the following:
 
-### Modelling BRAM Usage
+1. FPGA kernels are fully pipelined with an initiation interval of 1, meaning there are no pipeline stalls and every cycle provides the same amount of data through all the stages of the pipeline.
 
-### Modelling Performance
+2. Batch processing : transposing a large number of matrices to compute the effective performance of a single matrix transposition.
 
-Best case realistic performance that can be obtained. 
+3. These imply an overlap in computation and memory access. Consider matrix transposition to be realized using 3 stages:
+    - Fetch data from global mem to fpga
+    - Transpose data in fpga
+    - Store the transposed data back to global memory
 
-Performance measured using the following metrics:
+    These 3 stages completely overlap.
 
-1. Throughput
+The above assumptions imply that performance can be measured by computing the time taken for a specific stage, considering all stages overlap; each stage large enough, due to batch processing, to compensate for negligible latencies.
+
+Performance are measured using the following metrics:
+
+1. Throughput : Amount of bits transposed per second.
 2. Runtime
 3. Bandwidth
 
-Configurations used:
+Let's consider the following configurations:
 
 1. Single Bank
-2. Interleaved Multiple Banks
+2. Multiple Banks
 
-#### Single Bank
+### Single Bank
 
-Let's suppose the FPGA fetches data at maximum bandwidth from a single bank in global memory.
+Performance can be modelled based on the effective time taken to fetch a single matrix from the global memory to the fpga since all the stages overlap as mentioned previously. Therefore, the data fetched from a single bank of the global memory by the FPGA should match the width of the pipeline of 512 bits.
+
+Let's suppose the FPGA fetches data at maximum bandwidth from a single bank in global memory. Therefore,
+
+    If N is the side of the matrix to be transposed and considering only square matrices of complex single precision floating points,
+
+    size_matrix = N * N * 8     # 8 bytes for a complex sp 
+    eff_runtime = size_matrix / max_bandwidth
 
 Maximum bandwidth that can be obtained is:
 
@@ -76,44 +91,36 @@ Maximum bandwidth that can be obtained is:
 
     max_bandwidth = bus_width * memory_controller_frequency
 
-                  = 19200.0 MB/s = 18.75 GB/s
-
-Let's assume the following:
-
-1. FPGA kernels are fully pipelined with an initiation interval of 1, meaning there are no pipeline stalls and every cycle provides data of a particular width through all stages of the pipeline.
-
-2. Batch processing : transposing a large number of matrices to compute the effective performance of a single matrix transposition.
-
-3. This implies an overlap in computation and memory access. Consider matrix transposition can be divided into 3 stages:
-    - Fetch data from global mem to fpga
-    - Transpose data in fpga
-    - Store the transposed data back to global memory
-
-    These 3 stages completely overlap.
-
-The above assumptions imply that performance can be measured by computing the time taken for a specific stage considering this overlaps with other stages; each stage being large enough due to batch processing to compensate for negligible latencies.
-
-Therefore, performance is modelled based on the effective time taken to fetch a single matrix from the global memory to the fpga.
-
-    If N is the side of the matrix to be transposed and considering only square matrices,
-
-    matrix_size_bytes = N * N / 8
-
-    runtime = matrix_size_bytes / max_bandwidth
+                  = 19200.0 MB/s = 19.2 GB/s
 
 Throughput is nothing but the bandwidth, since it is the amount of data transposed per second:
 
-    throughput =  max_bandwidth 
+    throughput =  max_bandwidth = 19.2GB/sec
 
-#### Interleaved Multiple Bank
+![Estimation of runtime for matrix transposition of different sizes](common/singlebank_transpose_est.png)
 
-If 4 banks feed 512 bits data @300 Mhz, there is a total of 2048 bits available per bank at an effective bandwidth of `18.75 GB/s * 4 = 75 GB/s`.
+Throughput of the matrices would be the maximum obtainable of 19.2 GB/sec.
 
-Therefore, the obtainable metrics would also scale by 4.
+#### Conclusion
 
-Runtime obtained
-Throughput obtained
+The performance of the kernel will be **memory bandwidth bound**, as seen in the throughput estimation. The throughput of all the sizes estimated is *19.2 GB/sec*. This is because of the following reason:
 
-### TODO
+Kernel runs at a frequency larger than the frequency that the data is brought in to the FPGA (memory controller frequency). Considering the memory controller frequency is fixed, enabling more data per cycle will be the way to increase the performance. This is complemented by the fact that wider pipelines can be created to consume more data to obtain higher performance.
+
+### Multiple Banks
+
+As discussed previously, providing more data per cycle will alleviate the memory bandwidth bottleneck of the kernel's performance. This can be done by using more banks to provide more data per cycle to the kernel.
+
+If 4 banks feed 512 bits data each @300 Mhz, there is a total of 2048 bits available at an effective bandwidth of `19.2 GB/s * 4 = 76 GB/s`.
+
+If the kernel continues to consume the same width (of say 512 bits per cycle), the kernel is **compute-bound** i.e, there is sufficient data available but requires more computation. One can nevertheless, see a better performance because the frequency of the kernel is higher than the memory controller and hence will have a higher throughput.
+
+If the kernel uses 4 bank equivalent width, the performance obtained will scale by 4 because of 4 times the bandwidth obtained and the kernel will again be **memory bandwidth bound** with a throughput of *76 GB/sec*.
+
+![Estimation of runtime for matrix transposition of different sizes using 4 banks](common/4bank_transpose_est.png)
+
+## TODO
 
 1. Explain why the bus width is 512 along with specifications of the hardware (bus, board)
+
+## Modelling BRAM Usage
