@@ -124,3 +124,41 @@ If the kernel uses 4 bank equivalent width, the performance obtained will scale 
 1. Explain why the bus width is 512 along with specifications of the hardware (bus, board)
 
 ## Modelling BRAM Usage
+
+Block RAMs in Intel FPGAs are made up of units called M20k blocks, which are  *20480* bits of memory each. The total number of M20k blocks available in each FPGA varies, with the Stratix 10 GX2800 FPGA containing *11721* M20k blocks. This results in the total BRAM memory of *229 Mbits* or *28.6 MB*.
+
+    total_bram = 11721 * 20480 / ((2 ** 20) * 8) # MB
+
+Each BRAM block has a variable word width of a maximum of *40 bits*. This means that a total of *512 words* of width 40 bits can be stored in a single M20k block. This is also called the **Word Depth**.  
+
+    word_depth = 20480 / 40
+
+The width and thereof, the depth are both configurable.
+
+Therefore, the estimation of BRAM usage is dependent on:
+
+1. Width of data accessed per cycle.
+2. Number of banks of local memory that are needed to access non-adjacent data simultaneously.
+3. Depth.
+4. Replications.
+
+### Width of data accessed
+
+The width of the adjacent data that are accessed defines the minimum number of M20ks required per bank of memory. N adjacent complex single precision floats accessed per cycle would require a minimum bank of width *N * 64 bits*. This bank will therefore consist of a minimum of *ceil(N * 64 / 40)* M20k blocks.
+
+    data_type = 64  # bits; complex sp float
+    width = N * 64
+    m20_width = 40  # bits
+    min_num_m20k_reqd_per_bank = ceil(width / m20_width)
+
+If *N = 8*, this is a minimum of *13* M20k blocks required.
+
+### Number of Banks required
+
+Let's assume a scenario, such as a trivial matrix transposition, where N adjacent data are written in a cycle that leads to a minimum number of M20k blocks used, as discussed previously. If N non-adjacent addresses have to be read in a single cycle, this would require data to be replicated into banks such that multiple addresses that are not adjacent can be accessed in a single cycle. This proportionally increases the number of M20ks used.
+
+    min_num_m20k_used = min_num_m20k_reqd_per_bank * num_banks
+                      = 13 * 8 banks = 104 M20ks 
+
+(aside): diagonal matrix transpose stores 8 words obtained per cycle directly in 8 separate banks, thereby utilizing only  8 * 2 = 16 M20k blocks, only 0.13% of BRAM usage.
+
