@@ -34,6 +34,18 @@ If the kernel continues to consume the same width (of say 512 bits per cycle), t
 
 If the kernel uses 4 bank equivalent width, the performance obtained will scale by 4 because of 4 times the bandwidth obtained and the kernel will again be **memory bandwidth bound** with a throughput of *76.8 GB/sec*.
 
+### Latency estimation 
+
+Latency estimation using the maximum bandwidth from above:
+
+#### Single Bank
+
+![Estimation of runtime for matrix transposition of different sizes](common/singlebank_transpose_est.png)
+
+#### 4 Banks
+
+![Estimation of runtime for matrix transposition of different sizes using 4 banks](common/4bank_transpose_est.png)
+
 ## TODO
 
 1. Explain why the bus width is 512 along with specifications of the hardware (bus, board)
