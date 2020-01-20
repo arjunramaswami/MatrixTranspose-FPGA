@@ -18,7 +18,7 @@ The maximum bandwidth that can be obtained from a single bank of memory is:
 
     memory_controller_frequency = 300 MHz
 
-    max_bandwidth = bus_width * memory_controller_frequency
+    max_bandwidth = bus_width_bytes * memory_controller_frequency
 
                   = 19200.0 MB/s = 19.2 GB/s
 
