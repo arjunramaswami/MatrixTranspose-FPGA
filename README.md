@@ -67,98 +67,108 @@ Therefore, the estimation of BRAM usage is dependent on:
 1. Width of data accessed per cycle.
 2. Depth.
 3. Private Copies
-4. Replications.
-5. Number of banks of local memory that are needed to access non-adjacent data simultaneously.
+4. Replications
+5. Number of banks of local memory
 
 ### Width of data accessed
 
-The width of the adjacent data that are accessed defines the minimum number of M20ks required per bank of memory. N adjacent complex single precision floats accessed per cycle would require a minimum bank of width *N * 64 bits*. This bank will therefore consist of a minimum of *ceil(N * 64 / 40)* M20k blocks.
+Accessing a data of a particular width defines the minimum number of M20ks required per bank of memory. Storing N complex single precision floats per cycle would require a minimum bank of width *N * 64 bits*. This bank will therefore consist of a minimum of *ceil(N * 64 / 40)* M20k blocks.
 
-    data_type = 64  # bits; complex sp float
+    data_type = 32 * 2  # bits; complex sp float
     width = N * 64
     m20_width = 40  # bits
-    min_num_m20k_reqd_per_bank = ceil(width / m20_width)
-
+    
+    # minimum number of m20ks required to store N data per cycle
+    min_num_m20k_reqd_per_bank = ceil(width / m20_width) 
 If *N = 8*, this is a minimum of *13* M20k blocks required.
 
 ### Bank Depth
 
-Assuming the maximum word width of 40 bits, a depth of minimum of 512 words can be stored in a single M20k block. If there are more words to be stored, there is a proportional increase in the M20k blocks used.
+Assuming the maximum word width of 40 bits, a depth of a minimum of 512 words can be stored in a single simple dual port M20k block. The depth can be increased in powers of 2 and this consequently reduces the width of the block. For example, if the maximum depth that can be stored in a single M20k block is 2048, the width is reduced to 8 or 10 bits. Similarly, for a depth of 512 bits, the width is either 32 or 40 bits (refer [2.11. Intel Stratix 10 Embedded Memory Configurations](https://www.intel.com/content/dam/www/programmable/us/en/pdfs/literature/hb/stratix-10/ug-s10-memory.pdf)).
+
+**Assumption** (have to clarify)
+
+Let's say, a matrix of `128x128` complex floats has to be stored in BRAMs, with 8 complex floats stored per cycle. This therefore, requires 2048 word depth of data to be stored (`128 * 128 / 8`). Storing this in a single M20k would require using a dual port block with a bit width of 8 or 10 bits. Considering the data type that is used is a complex float value, a struct of two floats, the configuration of m20k that can be used requires a minimum of 32 width and hence a maximum of 512 words depth. Larger depth requires multiplexing multiple M20K blocks, therefore a proportional increase in BRAM usage. In this case, it would require 4 times the M20ks.
 
     num_words = data_size / num_data_per_cycle 
-    min_num_m20k_reqd_per_bank = min_num_m20k_reqd_per_bank + (num_words / bank_depth)
+    min_num_m20k_reqd_per_bank = ceil(port_width / m20_width) * (num_words / bank_depth)
 
-**Note**: In some cases, there is a reduction of word width to have a deeper M20k block. Needs further research!
+**NOTE** : If the depth required is lesser than 512 words, the M20k configuration is a `512 * 40 bits`. If greater than 512 words, it is `512 * 32 bit` M20ks.
 
 ### Private Copies
 
-Private copies are used for simultaneous access of memory by multiple loop iterations in different basic blocks. In a basic block, only one thread or iteration can exist at one time. even with ii or 1, each loop's basic block can have larger latency.  within the same basic block not the same cycle. Since only a thread or iteration is scheduled per cycle in a pipeline. But the access can take multiple cycles to complete (read has a latency of 4 cycles), this requires private copies of memory to enable simultaneous memory accesses.  Multiple loop iterations involve read and or write operations to different or same addresses in memory. For example, read and write simultaneously could occur in a cycle due to two separate ports, multiple reads as well. Therefore, these private copies can be in the same M20k block memory of clock multiplexing. These are multiple private copies of memory found within each replication.
+Private copies are used for simultaneous access of memory by multiple loop iterations in basic blocks. Private copies can be controlled using the max_concurrency pragma on the loop, since each iteration scheduled creates private copies of all memory local to its computation.
 
-If the word depth is less than 512, private copies are added to it, else more m20k blocks are added for them.
+if word depth is less than 512 and the private copies can fit the m20k block, then they are added to fill the m20k block.
+
+    min_num_m20k_reqd_per_bank = min_num_m20k_reqd_per_bank * private_copies 
+
+The number of private copies are dependent on the loop, the type of kernel (ND Range, SingleWorkItem) and other factors. For not very trivial kernels, expect about:
+
+- 4 private copies for singleworkitem kernels
+- 3 private copies for NDrangekernels.
 
 ### Replications
 
-Replications of memory allows multiple addresses to local memory by the same loop iteration. In order to access memory in different addresses in the same clock cycle, one needs to replicate memory. This is different from private copy because private copies are simultaneous access of memory in a cycle by different loop iterations meaning same basic block in different cycles.
-TODO: scenario for replications
+Accessing data of a particular width from/to an address makes use of the paricular wide port and the required address to the M20k block. Whereas, accessing data of a particular width from multiple addresses in the same clock cycle requires replications of memory so that these data can be separately "addressed" from distinct M20ks. This is made possible using replications.
 
-    repl = 
-    min_num_m20k_reqd_per_bank = min_num_m20k_reqd_per_bank * repl
+An example would be accessing column wise data from a matrix stored in local memory.
 
-### Number of Banks required
+    min_num_m20k_reqd_per_bank = ceil(port_width / m20_width) * (num_words / bank_depth) * private_copies * replications
 
-Let's assume a scenario, such as a trivial matrix transposition, where N adjacent data are written in a cycle that leads to a minimum number of M20k blocks used, as discussed previously. If N non-adjacent addresses have to be read in a single cycle, this would require data to be replicated into banks such that multiple addresses that are not adjacent can be accessed in a single cycle. This proportionally increases the number of M20ks used.
+### Banks
 
-Each bank has access to multiple ports, which the replications and private copies share. Each bank has different data in same addresses therefore, they occupy completely different m20ks.
+Each bank has different data in same addresses therefore, they occupy completely different m20ks.
 
     min_num_m20k_used = min_num_m20k_reqd_per_bank * num_banks
-                      = 13 * 8 banks = 104 M20ks 
 
-(aside): diagonal matrix transpose stores 8 words obtained per cycle directly in 8 separate banks, thereby utilizing only  8 * 2 = 16 M20k blocks, only 0.13% of BRAM usage.
+### BRAM Estimation
+
+Modelling the amount of BRAM usage is highly dependent on the design and implementation specifics. The next section elaborates on the specific designs and also estimates their respective BRAM usage. The estimation can be approximately calcalated by the following:
 
     data_width = 512
     if depth < 512 words:
         m20k_width = 40 
         if private copies can fit within the 512 words:
-            ceil(data_width / 40) * replications * banks
+            num_m20k = ceil(data_width / 40) * replications * banks
         else
-            ceil(data_width / 32) * private copies * replications * banks
+            num_m20k = ceil(data_width / 32) * private copies * replications * banks
     
     if depth > 512 words
         m20k_width = 32
-        ceil(data_width / 32) * private copies * replications * banks
+        num_m20k = ceil(data_width / 32) * private copies * replications * banks
 
-## Design
+## Design and Implementation
 
-explain the diagonal transpose!
-
-## Implementation
 Each experiment has a distinct branch:
 
-### Master
-Simple 2d matrix transposition that uses 8 replications and 3 private copies of
-an NxN matrix
+### Simple Naive 2d Transposition
+
+Simple 2d matrix transposition that uses 8 replications and 3 private copies of an NxN matrix.
 
 ### Banked Transpose ND Range Kernel
-Banking an NxN matrix into N banks of N elements each. Implemented using an 
-ND range kernel. Uses 3 private copies of the NxN matrix.
+
+Banking an NxN matrix into N banks of N elements each. Implemented using an ND range kernel. Uses 3 private copies of the NxN matrix.
 
 ### Banked Transpose Single Work Item Kernel
-Banking an NxN matrix into N banks of N elements each. Implemented using an 
-SingleWorkItem Kernel. Uses 4 private copies of the NxN matrix.
+
+Banking an NxN matrix into N banks of N elements each. Implemented using an SingleWorkItem Kernel. Uses 4 private copies of the NxN matrix.
 
 ### Diagonal Matrix Transposition
-2d transposition that stores data in diagonals of an NxN matrix, N banks of N 
-elements each, banked row-wise. This creates an N wide read port and a 1-wide
-write port. 
 
-A diagram of the transposition is shown in the *transpose.cl* file in the 
-branch. 
+2d transposition that stores data in diagonals of an NxN matrix, N banks of N elements each, banked row-wise. This creates an N wide read port and a 1-wide write port. 
+
+A diagram of the transposition is shown in the *transpose.cl* file in the branch.
 
 *Issues*:
 - Couldn't bank column-wise that may lead to 1 wide read and write ports
 - Need to reshuffle the row read from the buffer. 
 
+(aside): diagonal matrix transpose stores 8 words obtained per cycle directly in 8 separate banks, thereby utilizing only  8 * 2 = 16 M20k blocks, only 0.13% of BRAM usage.
+                      = 13 * 8 banks = 104 M20ks 
+
 #### Problems with Reshuffling 
+
 - Reshuffling when writing into the 2d buffer spoils diagonalization
 - Reshuffling when reading from the 2d buffer directly causes arbitration because the memory read pattern is not constant.
 - Reshuffling by writing into a temporary buffer of N depth creates several errors:
@@ -169,5 +179,6 @@ branch.
 
 ### Eklund Method using Shift registers
 
-### Read Before Write 
+### Read Before Write
+
 Extension to the diagonal matrix transposition method that is still in progress.
