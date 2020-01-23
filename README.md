@@ -97,11 +97,11 @@ Let's say, a matrix of `128x128` complex floats has to be stored in BRAMs, with 
 
 ### Private Copies
 
-Private copies are used for simultaneous access of memory by multiple loop iterations in basic blocks. Private copies can be controlled using the max_concurrency pragma on the loop, since each iteration scheduled creates private copies of all memory local to its computation.
+Private copies are used for simultaneous access of memory by multiple loop iterations in basic blocks. Private copies can be controlled using the *max_concurrency* pragma on the loop, since each iteration scheduled creates private copies of all memory local to its computation.
 
-if word depth is less than 512 and the private copies can fit the m20k block, then they are added to fill the m20k block.
+If word depth is less than 512 and the private copies can fit the m20k block, then they are added to fill the m20k block. Otherwise,
 
-    min_num_m20k_reqd_per_bank = min_num_m20k_reqd_per_bank * private_copies 
+    min_num_m20k_reqd_per_bank = ceil(port_width  * private_copies / m20_width) * (num_words / bank_depth)
 
 The number of private copies are dependent on the loop, the type of kernel (ND Range, SingleWorkItem) and other factors. For not very trivial kernels, expect about:
 
@@ -114,7 +114,7 @@ Accessing data of a particular width from/to an address makes use of the paricul
 
 An example would be accessing column wise data from a matrix stored in local memory.
 
-    min_num_m20k_reqd_per_bank = ceil(port_width / m20_width) * (num_words / bank_depth) * private_copies * replications
+    min_num_m20k_reqd_per_bank = ceil(port_width * private_copies / m20_width) * (num_words / bank_depth)  * replications
 
 ### Banks
 
@@ -132,11 +132,11 @@ Modelling the amount of BRAM usage is highly dependent on the design and impleme
         if private copies can fit within the 512 words:
             num_m20k = ceil(data_width / 40) * replications * banks
         else
-            num_m20k = ceil(data_width / 32) * private copies * replications * banks
+            num_m20k = ceil(data_width * private_copies / 32) * replications * banks
     
     if depth > 512 words
         m20k_width = 32
-        num_m20k = ceil(data_width / 32) * private copies * replications * banks
+        num_m20k = ceil(data_width * private copies / 32) * replications * banks
 
 ## Design and Implementation
 
@@ -144,41 +144,100 @@ Each experiment has a distinct branch:
 
 ### Simple Naive 2d Transposition
 
-Simple 2d matrix transposition that uses 8 replications and 3 private copies of an NxN matrix.
+Naive 2d Transposition that writes 8 complex floating points row-wise into local memory and reads 8 complex points column wise from the same memory.
 
-### Banked Transpose ND Range Kernel
+    local float2 buf[N][N];  // buf[N][N] banked on column
 
-Banking an NxN matrix into N banks of N elements each. Implemented using an ND range kernel. Uses 3 private copies of the NxN matrix.
+    #pragma loop_coalesce
+    for(unsigned i = 0; i < N; i++){
+      for(unsigned k = 0; k < (N / 8); k++){
+        unsigned where_read = k * 8;
 
-### Banked Transpose Single Work Item Kernel
+        // write into a row of a buffer
+        buf[i][where_read + 0] = read_channel_intel(chaninTranspose[0]);
+        buf[i][where_read + 1] = read_channel_intel(chaninTranspose[1]);
+        // ... 6 more data stored
+      }
+    }
 
-Banking an NxN matrix into N banks of N elements each. Implemented using an SingleWorkItem Kernel. Uses 4 private copies of the NxN matrix.
+    #pragma loop_coalesce
+    for(unsigned i = 0; i < N; i++){
+      for(unsigned k = 0; k < (N / 8); k++){
+        unsigned where_write = k * 8;
+
+        // read from column of a buffer
+        write_channel_intel(chanoutTranspose[0], buf[where_write + 0][i]);         
+        write_channel_intel(chanoutTranspose[1], buf[where_write + 1][i]);   
+        // ... 6 more data read
+      }
+    }
+
+This creates the following:
+
+    say, N = 64
+        width = 512 # bits or 64 bytes
+        num_words = 64 * 64 * 8 / 64 = 512 
+        depth = 512 / 512 = 1
+        private_copies = 4   // private copies cannot fit into existing M20k blocks
+        replications = 8
+        bank = 1
+        total_m20k = ceil(512 * 4 / 40) * 1 * 8 * 1 = 416 
+
+    say, N = 128
+        width = 512 
+        num_words = 128 * 128 * 8 / 64 = 2048
+        depth = 2048 / 512 = 4 // depth is larger than 512 words, so width is 32 bits
+        private_copies = 4
+        replications = 8
+        bank = 1
+        total_m20k = ceil(512 * 4 / 32) * 4 * 8 * 1 = 2048 
+
+This estimate can provide hints on optimization:
+
+1. Replications use a lot of BRAMs.
+2. Store data in different banks to improve performance.
+
+### Banked Transpose
+
+Bank different columns so that there is no need to replicate data.
+
+    local float2 __attribute__((numbanks(N))) buf[N][N];
+
+    say N = 64,
+        width = 512
+        depth = 64 * 8 / 64 = 8 // every row is stored in another bank
+        private copies = 4      // can fit into m20k so no private_copies
+        replications = 1
+        bank = 64
+        total_m20k = ceil(512 / 40) * 1 * 1 * 64 =  832 
+
+Dividing data to N banks is surely not optimal even though performance wise this is better. Instead fill the depth of the BRAMs and reducing the banks, ideally to 8 banks, since only 8 points are read per cycle.
 
 ### Diagonal Matrix Transposition
 
-2d transposition that stores data in diagonals of an NxN matrix, N banks of N elements each, banked row-wise. This creates an N wide read port and a 1-wide write port. 
+Writes the 8 input points of data into 8 separate banks in a diagonal fashion, so that the reads are also in distinct banks.
 
-A diagram of the transposition is shown in the *transpose.cl* file in the branch.
-
-*Issues*:
-- Couldn't bank column-wise that may lead to 1 wide read and write ports
-- Need to reshuffle the row read from the buffer. 
-
-(aside): diagonal matrix transpose stores 8 words obtained per cycle directly in 8 separate banks, thereby utilizing only  8 * 2 = 16 M20k blocks, only 0.13% of BRAM usage.
-                      = 13 * 8 banks = 104 M20ks 
-
-#### Problems with Reshuffling 
-
-- Reshuffling when writing into the 2d buffer spoils diagonalization
-- Reshuffling when reading from the 2d buffer directly causes arbitration because the memory read pattern is not constant.
-- Reshuffling by writing into a temporary buffer of N depth creates several errors:
-  - Gets optimized out if written in the same loop as the write-channel
-  - When written in a separate loop requires waiting for the N data items to output correct data
-  - Reordering using a circular shift register requires skipping differing number of cycles based on the row, before outputting relevant data
-- Reshuffling by reading and writing back to the same buffer, requires another BARRIER.
-
-### Eklund Method using Shift registers
+    say N = 64,
+        width = 64 # 1 point per bank
+        depth = 512
+        private copies = 4
+        replications = 1
+        banks = 8
+        total_m20k = ceil(64 * 4 / 40) * 1 * 1 * 8 = 56
 
 ### Read Before Write
 
 Extension to the diagonal matrix transposition method that is still in progress.
+
+## Comparison
+
+Comparison of BRAM usage between naive and diagonal 2d matrix transpose. The second and third columns show the number of m20k blocks used with the percentage of total m20ks available.
+
+| Matrix Size in cubes | Trivial 2d Transpose | Diagonal 2d Transpose |
+|:--------------------:|:--------------------:|:---------------------:|
+|          32          |      104 (0.88%)     |          0.43         |
+|          64          |      416 (3.5%)      |       56 (0.5%)       |
+|          128         |     2048 (17.5%)     |       256 (2.2%)      |
+|          256         |      8192 (70%)      |       1024 (8.73%)    |
+
+TODO: Illustration of BRAM savings when used with FFT3d
