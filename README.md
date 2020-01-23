@@ -34,7 +34,7 @@ If the kernel continues to consume the same width (of say 512 bits per cycle), t
 
 If the kernel uses 4 bank equivalent width, the performance obtained will scale by 4 because of 4 times the bandwidth obtained and the kernel will again be **memory bandwidth bound** with a throughput of *76.8 GB/sec*.
 
-### Latency estimation 
+### Latency estimation
 
 Latency estimation using the maximum bandwidth from above:
 
@@ -88,7 +88,7 @@ Assuming the maximum word width of 40 bits, a depth of a minimum of 512 words ca
 
 **Assumption** (have to clarify)
 
-Let's say, a matrix of `128x128` complex floats has to be stored in BRAMs, with 8 complex floats stored per cycle. This therefore, requires 2048 word depth of data to be stored (`128 * 128 / 8`). Storing this in a single M20k would require using a dual port block with a bit width of 8 or 10 bits. Considering the data type that is used is a complex float value, a struct of two floats, the configuration of m20k that can be used requires a minimum of 32 width and hence a maximum of 512 words depth. Larger depth requires multiplexing multiple M20K blocks, therefore a proportional increase in BRAM usage. In this case, it would require 4 times the M20ks.
+Let's say, a matrix of `128x128` complex floats has to be stored in BRAMs, with 8 complex floats stored per cycle. This therefore, requires 2048 word depth of data to be stored (`128 * 128 / 8`). Storing this in a single M20k would require a bit width of 8 or 10 bits. Considering the data type that is used is a complex float value, a struct of two floats, the configuration of m20k that can be used requires a minimum of 32 width and hence a maximum of 512 words depth. Larger depth requires multiplexing multiple M20K blocks, therefore a proportional increase in BRAM usage. In this case, it would require 4 times the M20ks.
 
     num_words = data_size / num_data_per_cycle 
     min_num_m20k_reqd_per_bank = ceil(port_width / m20_width) * (num_words / bank_depth)
@@ -124,7 +124,7 @@ Each bank has different data in same addresses therefore, they occupy completely
 
 ### BRAM Estimation
 
-Modelling the amount of BRAM usage is highly dependent on the design and implementation specifics. The next section elaborates on the specific designs and also estimates their respective BRAM usage. The estimation can be approximately calcalated by the following:
+Modelling the amount of BRAM usage is highly dependent on the design and implementation specifics. The next section elaborates on the specific designs and also estimates their respective BRAM usage. The estimation can be approximately calculated by the following:
 
     data_width = 512
     if depth < 512 words:
@@ -235,7 +235,7 @@ Comparison of BRAM usage between naive and diagonal 2d matrix transpose. The sec
 
 | Matrix Size in cubes | Trivial 2d Transpose | Diagonal 2d Transpose |
 |:--------------------:|:--------------------:|:---------------------:|
-|          32          |      104 (0.88%)     |          0.43         |
+|          32          |      104 (0.88%)     |       16 (0.13)       |
 |          64          |      416 (3.5%)      |       56 (0.5%)       |
 |          128         |     2048 (17.5%)     |       256 (2.2%)      |
 |          256         |      8192 (70%)      |       1024 (8.73%)    |
