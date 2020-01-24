@@ -136,7 +136,7 @@ Modelling the amount of BRAM usage is highly dependent on the design and impleme
     
     if depth > 512 words
         m20k_width = 32
-        num_m20k = ceil(data_width * private copies / 32) * replications * banks
+        num_m20k = ceil(data_width * private copies / 32) * (depth / 512) * replications * banks
 
 ## Design and Implementation
 
