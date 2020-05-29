@@ -1,0 +1,11 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
+// Log of the number of points of FFT 
+#define LOGN @LOG_SIZE@ 
+#define SIZE @SIZE@ 
+
+#define LOGPOINTS @LOG_POINTS@
+#define POINTS @POINTS@
+
+#endif // CONFIG_H

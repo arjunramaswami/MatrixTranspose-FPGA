@@ -1,0 +1,13 @@
+# Changelog
+All notable changes to this project will be documented in this file.
+
+## Unreleased
+
+## [1.0.0] - []
+
+### Added
+- 2d Matrix Transpose using diagonal transposition approach
+- 2d Matrix Transpose using the naive approach
+- Understanding BRAM usage
+- Other non-optimal transposition options
+- CI/CD
