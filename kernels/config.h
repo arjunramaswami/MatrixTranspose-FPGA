@@ -2,8 +2,8 @@
 #define CONFIG_H
 
 // Log of the number of points of FFT 
-#define LOGN 8 
-#define SIZE 256 
+#define LOGN 6 
+#define SIZE 64 
 
 #define LOGPOINTS 3
 #define POINTS 8

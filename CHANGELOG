@@ -6,8 +6,8 @@ All notable changes to this project will be documented in this file.
 ## [1.0.0] - []
 
 ### Added
-- 2d Matrix Transpose using diagonal transposition approach
-- 2d Matrix Transpose using the naive approach
-- Understanding BRAM usage
-- Other non-optimal transposition options
+- Bitreverse Diagonal 2d Transpose 
+- Diagonal 2d Transpose 
+- CMake Build System
+- Integrated other transposition kernels
 - CI/CD

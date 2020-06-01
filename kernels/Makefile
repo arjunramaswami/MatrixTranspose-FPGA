@@ -50,7 +50,7 @@ TARGET_PROF_DIR  ?= $(TARGET_DIR)/profile/prof$(LOGN)
 TARGET_SYN_DIR   ?= $(TARGET_DIR)/synthesis/syn$(LOGN)
 	
 # File
-KERNEL_SRCS := ./transpose.cl
+KERNEL_SRCS := ./diag_SWI_bitrev.cl
 
 # Targets
 TARGET_KERNEL := transpose.aocx
