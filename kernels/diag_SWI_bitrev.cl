@@ -99,6 +99,7 @@ kernel void transpose(int batch) {
       float2 rotate_out[N];
       unsigned offset = 0;            
 
+      #pragma unroll 8
       for(unsigned j = 0; j < N; j++){
         unsigned rot = (DEPTH + j - row) << (LOGN - LOGPOINTS) & (DEPTH -1);
         unsigned offset = row >> LOGPOINTS;
