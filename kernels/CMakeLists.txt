@@ -34,7 +34,7 @@ separate_arguments(PROF_FLAGS)
 #   - ${kernel_name}_syn: to generate synthesis binary
 ##
 include(${CMAKE_SOURCE_DIR}/cmake/build_kernel.cmake)
-set(kernels swi_bitrev_diag)
+set(kernels diagonal_bitrev simple_bitrev)
 
 if (INTELFPGAOPENCL_FOUND)
   build_mTranspose(${kernels})

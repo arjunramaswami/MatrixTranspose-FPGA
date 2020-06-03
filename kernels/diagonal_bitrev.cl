@@ -59,18 +59,18 @@ kernel void transpose(int batch) {
 
       // Temporary buffer to rotate before filling the matrix
       //float2 rotate_in[POINTS];
-      float2 rotate_in[N];
+      float2 bitrev[N];
 
       // bit-reversed ordered input stored in normal order
       for(unsigned j = 0; j < (N / 8); j++){
-        rotate_in[j] = read_channel_intel(chanintrans[0]);               // 0
-        rotate_in[4 * N / 8 + j] = read_channel_intel(chanintrans[1]);   // 32
-        rotate_in[2 * N / 8 + j] = read_channel_intel(chanintrans[2]);   // 16
-        rotate_in[6 * N / 8 + j] = read_channel_intel(chanintrans[3]);   // 48
-        rotate_in[N / 8 + j] = read_channel_intel(chanintrans[4]);       // 8
-        rotate_in[5 * N / 8 + j] = read_channel_intel(chanintrans[5]);   // 40
-        rotate_in[3 * N / 8 + j] = read_channel_intel(chanintrans[6]);   // 24
-        rotate_in[7 * N / 8 + j] = read_channel_intel(chanintrans[7]);   // 54
+        bitrev[j] = read_channel_intel(chanintrans[0]);               // 0
+        bitrev[4 * N / 8 + j] = read_channel_intel(chanintrans[1]);   // 32
+        bitrev[2 * N / 8 + j] = read_channel_intel(chanintrans[2]);   // 16
+        bitrev[6 * N / 8 + j] = read_channel_intel(chanintrans[3]);   // 48
+        bitrev[N / 8 + j] = read_channel_intel(chanintrans[4]);       // 8
+        bitrev[5 * N / 8 + j] = read_channel_intel(chanintrans[5]);   // 40
+        bitrev[3 * N / 8 + j] = read_channel_intel(chanintrans[6]);   // 24
+        bitrev[7 * N / 8 + j] = read_channel_intel(chanintrans[7]);   // 54
       }
 
       /* For each outer loop iteration, N data items are processed.
@@ -85,11 +85,17 @@ kernel void transpose(int batch) {
       // N/8 rows filled with the same rotation
       for(unsigned j = 0; j < N / 8; j++){
 
+        float2 rotate_in[POINTS];
+        #pragma unroll 8
+        for(unsigned i = 0; i < POINTS; i++){
+          rotate_in[i] = bitrev[(j * POINTS) + i];
+        }
+
         #pragma unroll 8
         for(unsigned i = 0; i < 8; i++){
             unsigned where = ((i + POINTS) - rot) & (POINTS - 1);
             unsigned buf_row = (row * (N / 8)) + j;
-            buf[buf_row][i] = rotate_in[(j * POINTS) + where];
+            buf[buf_row][i] = rotate_in[where];
         }
       }
     }
@@ -110,7 +116,7 @@ kernel void transpose(int batch) {
       }
 
       for(unsigned j = 0; j < N / 8; j++){
-        unsigned rev = bit_reversed((j * POINTS), LOGN);
+        unsigned rev = j;
         unsigned rot_out = row & (N - 1);
         
         unsigned chan0 = (rot_out + rev) & (N - 1);                 // 0
@@ -122,14 +128,14 @@ kernel void transpose(int batch) {
         unsigned chan6 = ((3 * N / 8) + rot_out + rev) & (N - 1);  // 24
         unsigned chan7 = ((7 * N / 8) + rot_out + rev) & (N - 1);  // 56
 
-        write_channel_intel(chanouttrans[0], rotate_out[chan0]);    // 0
-        write_channel_intel(chanouttrans[1], rotate_out[chan1]);   // 32
-        write_channel_intel(chanouttrans[2], rotate_out[chan2]);   // 16
-        write_channel_intel(chanouttrans[3], rotate_out[chan3]);   // 48
-        write_channel_intel(chanouttrans[4], rotate_out[chan4]);   // 8
-        write_channel_intel(chanouttrans[5], rotate_out[chan5]);   // 40
-        write_channel_intel(chanouttrans[6], rotate_out[chan6]);   // 24
-        write_channel_intel(chanouttrans[7], rotate_out[chan7]);   // 54
+        write_channel_intel(chanouttrans[0], rotate_out[chan0]); 
+        write_channel_intel(chanouttrans[1], rotate_out[chan1]); 
+        write_channel_intel(chanouttrans[2], rotate_out[chan2]); 
+        write_channel_intel(chanouttrans[3], rotate_out[chan3]); 
+        write_channel_intel(chanouttrans[4], rotate_out[chan4]); 
+        write_channel_intel(chanouttrans[5], rotate_out[chan5]); 
+        write_channel_intel(chanouttrans[6], rotate_out[chan6]); 
+        write_channel_intel(chanouttrans[7], rotate_out[chan7]); 
       }
     } // row
 
@@ -140,37 +146,36 @@ kernel void transpose(int batch) {
 __attribute__((max_global_work_dim(0)))
 kernel void store(global float2 * restrict dest, int batch) {
   const int N = (1 << LOGN);
-  for(unsigned j = 0; j < (batch * N); j++){
-    float2 buf[N];
-    for(unsigned k = 0; k < (N / 8); k++){
 
-      unsigned where = (k * 8);
-      
-      buf[where + 0] = read_channel_intel(chanouttrans[0]);
-      buf[where + 1] = read_channel_intel(chanouttrans[1]);
-      buf[where + 2] = read_channel_intel(chanouttrans[2]);
-      buf[where + 3] = read_channel_intel(chanouttrans[3]);
-      buf[where + 4] = read_channel_intel(chanouttrans[4]);
-      buf[where + 5] = read_channel_intel(chanouttrans[5]);
-      buf[where + 6] = read_channel_intel(chanouttrans[6]);
-      buf[where + 7] = read_channel_intel(chanouttrans[7]);
-    }
+  for(unsigned i = 0; i < batch; i++){
 
-    for(unsigned k = 0; k < (N / 8); k++){
-      unsigned where = (j * N) + (k * 8);
-      unsigned rev = bit_reversed((k * POINTS), LOGN);
-      //unsigned rev = k;
+    for(unsigned j = 0; j < N; j++){
 
-      dest[where + 0] = buf[rev];
-      dest[where + 1] = buf[4 * N / 8 + rev];   // 32
-      dest[where + 2] = buf[2 * N / 8 + rev];   // 16
-      dest[where + 3] = buf[6 * N / 8 + rev];   // 48
-      dest[where + 4] = buf[N / 8 + rev];       // 8
-      dest[where + 5] = buf[5 * N / 8 + rev];   // 40
-      dest[where + 6] = buf[3 * N / 8 + rev];   // 24
-      dest[where + 7] = buf[7 * N / 8 + rev];   // 54
+      float2 buf[N];
+      for(unsigned k = 0; k < (N / 8); k++){
+
+        buf[k] = read_channel_intel(chanouttrans[0]);
+        buf[4 * N / 8 + k] = read_channel_intel(chanouttrans[1]);
+        buf[2 * N / 8 + k] = read_channel_intel(chanouttrans[2]);
+        buf[6 * N / 8 + k] = read_channel_intel(chanouttrans[3]);
+        buf[N / 8 + k] = read_channel_intel(chanouttrans[4]);
+        buf[5 * N / 8 + k] = read_channel_intel(chanouttrans[5]);
+        buf[3 * N / 8 + k] = read_channel_intel(chanouttrans[6]);
+        buf[7 * N / 8 + k] = read_channel_intel(chanouttrans[7]);
+      }
+
+      for(unsigned k = 0; k < (N / 8); k++){
+        unsigned where = (i * N * N) + (j * N) + (k * 8);
+
+        dest[where + 0] = buf[(k * 8) + 0];
+        dest[where + 1] = buf[(k * 8) + 1];
+        dest[where + 2] = buf[(k * 8) + 2];
+        dest[where + 3] = buf[(k * 8) + 3];
+        dest[where + 4] = buf[(k * 8) + 4];
+        dest[where + 5] = buf[(k * 8) + 5];
+        dest[where + 6] = buf[(k * 8) + 6];
+        dest[where + 7] = buf[(k * 8) + 7];
+      }
     }
   }
-
-
 }

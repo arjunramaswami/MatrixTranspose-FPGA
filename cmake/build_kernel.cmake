@@ -15,7 +15,8 @@ function(build_mTranspose)
     set(CL_SRC "${CMAKE_SOURCE_DIR}/kernels/${kernel_fname}.cl")
     set(CL_INCLUDES "-I${CMAKE_BINARY_DIR}/kernels/mtrans_config.h")
     set(CL_HEADER "${CMAKE_BINARY_DIR}/kernels/mtrans_config.h")
-    set(CL_INCL_DIR "-I${CMAKE_BINARY_DIR}/kernels")
+    set(CL_INCL_DIR "-I${CMAKE_BINARY_DIR}/kernels" "-I${CMAKE_SOURCE_DIR}/kernels")
+
     set(EMU_BSTREAM 
         "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${SIZE}pt_${kernel_fname}_emu.aocx")
     set(REP_BSTREAM 
