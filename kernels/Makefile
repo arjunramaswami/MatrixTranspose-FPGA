@@ -50,11 +50,11 @@ TARGET_PROF_DIR  ?= $(TARGET_DIR)/profile/prof$(LOGN)
 TARGET_SYN_DIR   ?= $(TARGET_DIR)/synthesis/syn$(LOGN)
 	
 # File
-KERNEL_SRCS := ./diag_SWI_bitrev.cl
+KERNEL_SRCS := ./diagonal_bitrev.cl
 
 # Targets
-TARGET_KERNEL := transpose.aocx
-TARGET_INTERMEDIATE := transpose.aocr
+TARGET_KERNEL := diagonal_bitrev.aocx
+TARGET_INTERMEDIATE := diagonal_bitrev.aocr
 
 default: help 
 	$(error No target specified)

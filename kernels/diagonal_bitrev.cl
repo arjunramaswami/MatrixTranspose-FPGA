@@ -1,4 +1,4 @@
-//  Author: Arjun Ramaswami
+// Authors: Arjun Ramaswami, Tobias Kenter
 
 #include "mtrans_config.h"
 
