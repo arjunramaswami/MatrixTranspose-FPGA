@@ -15,16 +15,16 @@ build-all:
     - cmake ..
     - make
     - chmod +x bin/host
-    - make swi_bitrev_diag_emu
+    - make diagonal_bitrev_emu
   artifacts:
     paths:
       - build/bin/host
-      - build/bin/64pt_swi_bitrev_diag_emu.aocx
+      - build/bin/64pt_diagonal_bitrev_emu.aocx
 
 test-all:
   stage: test
   script:
     - cd build/bin/
-    - CL_CONTEXT_EMULATOR_DEVICE_INTELFPGA=1 ./host -n 64 -b 1 -p 64pt_swi_bitrev_diag_emu.aocx
+    - CL_CONTEXT_EMULATOR_DEVICE_INTELFPGA=1 ./host -n 64 -b 1 -p 64pt_diagonal_bitrev_emu.aocx
   dependencies:
     - build-all
