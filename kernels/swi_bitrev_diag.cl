@@ -1,6 +1,6 @@
 //  Author: Arjun Ramaswami
 
-#include "./config.h"
+#include "mtrans_config.h"
 
 #pragma OPENCL EXTENSION cl_intel_channels : enable
 channel float2 chanintrans[POINTS] __attribute__((depth(POINTS)));
@@ -18,8 +18,8 @@ int bit_reversed(int x, int bits) {
 }
 
 
-// Kernel that fetches data from global memory 
-kernel void fetch(global volatile float2 * restrict src, int batch) {
+__attribute__((max_global_work_dim(0)))
+kernel void fetch(global const volatile float2 * restrict src, int batch) {
   const unsigned N = (1 << LOGN);
 
   for(unsigned k = 0; k < (batch * N); k++){ 
@@ -59,18 +59,18 @@ kernel void transpose(int batch) {
 
       // Temporary buffer to rotate before filling the matrix
       //float2 rotate_in[POINTS];
-      float2 buf_bitrev[N];
+      float2 rotate_in[N];
 
       // bit-reversed ordered input stored in normal order
       for(unsigned j = 0; j < (N / 8); j++){
-        buf_bitrev[j] = read_channel_intel(chanintrans[0]);               // 0
-        buf_bitrev[4 * N / 8 + j] = read_channel_intel(chanintrans[1]);   // 32
-        buf_bitrev[2 * N / 8 + j] = read_channel_intel(chanintrans[2]);   // 16
-        buf_bitrev[6 * N / 8 + j] = read_channel_intel(chanintrans[3]);   // 48
-        buf_bitrev[N / 8 + j] = read_channel_intel(chanintrans[4]);       // 8
-        buf_bitrev[5 * N / 8 + j] = read_channel_intel(chanintrans[5]);   // 40
-        buf_bitrev[3 * N / 8 + j] = read_channel_intel(chanintrans[6]);   // 24
-        buf_bitrev[7 * N / 8 + j] = read_channel_intel(chanintrans[7]);   // 54
+        rotate_in[j] = read_channel_intel(chanintrans[0]);               // 0
+        rotate_in[4 * N / 8 + j] = read_channel_intel(chanintrans[1]);   // 32
+        rotate_in[2 * N / 8 + j] = read_channel_intel(chanintrans[2]);   // 16
+        rotate_in[6 * N / 8 + j] = read_channel_intel(chanintrans[3]);   // 48
+        rotate_in[N / 8 + j] = read_channel_intel(chanintrans[4]);       // 8
+        rotate_in[5 * N / 8 + j] = read_channel_intel(chanintrans[5]);   // 40
+        rotate_in[3 * N / 8 + j] = read_channel_intel(chanintrans[6]);   // 24
+        rotate_in[7 * N / 8 + j] = read_channel_intel(chanintrans[7]);   // 54
       }
 
       /* For each outer loop iteration, N data items are processed.
@@ -84,21 +84,12 @@ kernel void transpose(int batch) {
       // fill the POINTS wide row of the buffer each iteration
       // N/8 rows filled with the same rotation
       for(unsigned j = 0; j < N / 8; j++){
- 
-        // Bitreverse read from rotate_in
-        float2 rotate_in[POINTS];
 
-        #pragma unroll 8
-        for(unsigned i = 0; i < 8; i++){
-          rotate_in[i] = buf_bitrev[(j * POINTS) + i];
-        }
-
-        // Rotate write into buffer
         #pragma unroll 8
         for(unsigned i = 0; i < 8; i++){
             unsigned where = ((i + POINTS) - rot) & (POINTS - 1);
             unsigned buf_row = (row * (N / 8)) + j;
-            buf[buf_row][i] = rotate_in[where];
+            buf[buf_row][i] = rotate_in[(j * POINTS) + where];
         }
       }
     }
@@ -143,10 +134,11 @@ kernel void transpose(int batch) {
     } // row
 
   } // iter matrices
-
+        
 }
 
-kernel void store(global float2 * restrict dest, int batch){
+__attribute__((max_global_work_dim(0)))
+kernel void store(global float2 * restrict dest, int batch) {
   const int N = (1 << LOGN);
   for(unsigned j = 0; j < (batch * N); j++){
     float2 buf[N];
@@ -167,6 +159,7 @@ kernel void store(global float2 * restrict dest, int batch){
     for(unsigned k = 0; k < (N / 8); k++){
       unsigned where = (j * N) + (k * 8);
       unsigned rev = bit_reversed((k * POINTS), LOGN);
+      //unsigned rev = k;
 
       dest[where + 0] = buf[rev];
       dest[where + 1] = buf[4 * N / 8 + rev];   // 32
@@ -178,4 +171,6 @@ kernel void store(global float2 * restrict dest, int batch){
       dest[where + 7] = buf[7 * N / 8 + rev];   // 54
     }
   }
+
+
 }

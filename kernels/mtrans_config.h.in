@@ -1,5 +1,5 @@
-#ifndef CONFIG_H
-#define CONFIG_H
+#ifndef MTRANS_CONFIG_H
+#define MTRANS_CONFIG_H
 
 // Log of the number of points of FFT 
 #define LOGN @LOG_SIZE@ 
@@ -8,4 +8,4 @@
 #define LOGPOINTS @LOG_POINTS@
 #define POINTS @POINTS@
 
-#endif // CONFIG_H
+#endif // MTRANS_CONFIG_
