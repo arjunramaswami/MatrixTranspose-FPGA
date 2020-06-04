@@ -7,6 +7,8 @@ project(fpga-matrixTranspose VERSION 1.0.0
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
+option(USE_DEBUG "Debug Mode" OFF)
+
 # Setup submodules that are required
 find_package(Git QUIET)
 if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")

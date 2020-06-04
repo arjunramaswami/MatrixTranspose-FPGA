@@ -2,14 +2,17 @@
 
 /*
 * This file performs the transpose of 2d square matrix based on the diagonal 
-* transposition algorithm.
+* transposition algorithm. 
+* Inputs to transposition and outputs from transposition are in bit reversed *    order as required by the FFT kernels.
 *
-* TODO: combine rotate_in and bitrev to a single buffer:
-*   - written to sequential addresses
-*   - read from bitreverse + rotation addresses
-*   following rotate_out 's implementation.
+* Steps:
+*  1. Host writes data in normal order to ddr
+*  2. Fetch kernel reads from ddr, bitreverses and channels to transpose kernel
+*  3. Transpose kernel bitreverses input back to normal order, rotates & stores *     in buffer
+*       Then reads transposed values, rotates back and bitreverses as output
+*  4. Store receives the bitreversed output from transpose,
+*       bitreverses back to normal order and stores back to ddr
 */
-
 
 #define LOGPOINTS 3
 #define POINTS (1 << LOGPOINTS)
@@ -156,37 +159,61 @@ kernel void transpose(int batch) {
       float2 rotate_out[N];
       unsigned offset = 0;            
 
-      // col_rotate selects elements within each row
-      //  - values between [0, 7]
-      //
-      // row_rotate selects rows based on:
-      //  - strides of N / 8 rows: j << (LOGN << LOGPOINTS): N/8, 2N/8 ..
-      //  - every N / 8 rows, rotate
-      //  buf[0][0], buf[4][1], buf[8][2]
       #pragma unroll 8
       for(unsigned j = 0; j < N; j++){
 
-        unsigned offset = row >> LOGPOINTS;
+        /* 
+        *  row_rotate selects rows with strides of N / 8 
+        *     j << (LOGN << LOGPOINTS) - N/8, 2N/8 ..
+        * 
+        *  Every j or N points, rotate
+        *   : first N points:
+        *     buf[0][0], buf[N/8][1], buf[2N/8][2] ..
+        *
+        *   : second N points:
+        *     buf[N-1*N/8][0], buf[0][1], buf[N/8][2] ..
+        *
+        *  Therefore, (DEPTH + j - row)
+        */
         unsigned rot = (DEPTH + j - row) << (LOGN - LOGPOINTS) & (DEPTH -1);
+
+        /* 
+        * offset: every 8 points, increase by 1 i.e., shift to the next row.
+        *    0  1  2  3  4  5  6  7 
+        *    8  9 10 11 12 13 14 15 <- offset
+        */
+        unsigned offset = row >> LOGPOINTS;
+
         unsigned row_rotate = offset + rot;
 
+
+        /* col_rotate selects elements within each row
+        *   - values between [0, 7]
+        */
         unsigned col_rotate = j & (POINTS - 1);
 
+        /* Contents of rotate_out:
+        * j=0:  0 64 128 192 256 ...
+        * j=1:  1 65 129 193 257 ...
+        *      ...
+        * j=4: 452 4 68 132 196 ..   
+        *
+        * hence, needs to be rotated and bitreversed
+        */
         rotate_out[j] = buf[row_rotate][col_rotate];
       }
 
       for(unsigned j = 0; j < N / 8; j++){
-        unsigned rev = j;
         unsigned rot_out = row & (N - 1);
         
-        unsigned chan0 = (rot_out + rev) & (N - 1);                 // 0
-        unsigned chan1 = ((4 * N / 8) + rot_out + rev) & (N - 1);  // 32
-        unsigned chan2 = ((2 * N / 8) + rot_out + rev) & (N - 1);  // 16
-        unsigned chan3 = ((6 * N / 8) + rot_out + rev) & (N - 1);  // 48
-        unsigned chan4 = ((N / 8) + rot_out + rev) & (N - 1);       // 8
-        unsigned chan5 = ((5 * N / 8) + rot_out + rev) & (N - 1);  // 40
-        unsigned chan6 = ((3 * N / 8) + rot_out + rev) & (N - 1);  // 24
-        unsigned chan7 = ((7 * N / 8) + rot_out + rev) & (N - 1);  // 56
+        unsigned chan0 = (rot_out + j) & (N - 1);                 // 0
+        unsigned chan1 = ((4 * N / 8) + rot_out + j) & (N - 1);  // 32
+        unsigned chan2 = ((2 * N / 8) + rot_out + j) & (N - 1);  // 16
+        unsigned chan3 = ((6 * N / 8) + rot_out + j) & (N - 1);  // 48
+        unsigned chan4 = ((N / 8) + rot_out + j) & (N - 1);       // 8
+        unsigned chan5 = ((5 * N / 8) + rot_out + j) & (N - 1);  // 40
+        unsigned chan6 = ((3 * N / 8) + rot_out + j) & (N - 1);  // 24
+        unsigned chan7 = ((7 * N / 8) + rot_out + j) & (N - 1);  // 56
 
         write_channel_intel(chanouttrans[0], rotate_out[chan0]); 
         write_channel_intel(chanouttrans[1], rotate_out[chan1]); 

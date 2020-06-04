@@ -29,11 +29,11 @@ void get_input_data(float2 *transpose_data, float2 *cpu_transpose_data, unsigned
       cpu_transpose_data[disp + i].y = transpose_data[disp + i].y = (float)i;
     }
   }
-#ifdef DEBUG
+  /*
   for (size_t i = 0; i < iter * (N * N); i++) {
     printf(" %d : transpose[%d] = (%f, %f)\n", i, i, transpose_data[i].x, transpose_data[i].y);
   }
-#endif
+  */
 }
 
 /*
@@ -66,11 +66,11 @@ void cpu_mTranspose(float2 *verify_data, int N, unsigned batch){
     verify_data[i].y = temp[i].y;
   }
 
-  #ifdef DEBUG
+  /*
   for (size_t i = 0; i < batch * N * N; i++) {
     printf(" %d : transpose[%d] = (%f, %f)\n", i, i, verify_data[i].x, verify_data[i].y);
   }
-  #endif
+  */
 
   free(temp);
 }
@@ -92,7 +92,10 @@ void verify_mTranspose(float2 *fpga_out, float2 *cpu_out, int N, int batch){
     mag_sum += magnitude;
     noise_sum += noise;
 
-    //printf("%zu: fpga - (%f %f) cpu - (%f %f)\n", i, fpga_out[i].x, fpga_out[i].y, cpu_out[i].x, cpu_out[i].y);
+#ifdef DEBUG
+    printf("%zu: fpga - (%f %f) cpu - (%f %f)\n", i, fpga_out[i].x, fpga_out[i].y, cpu_out[i].x, cpu_out[i].y);
+#endif
+
   }
   float db = 10 * log(mag_sum / noise_sum) / log(10.0);
   printf("-> Signal to noise ratio on output sample: %f --> %s\n\n", db, db > 120 ? "PASSED" : "FAILED");

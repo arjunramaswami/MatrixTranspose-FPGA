@@ -37,11 +37,11 @@ function(build_mTranspose)
     set(CL_SRC "${CMAKE_SOURCE_DIR}/kernels/${kernel_fname}.cl")
 
     set(EMU_BSTREAM 
-        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${SIZE}pt_${kernel_fname}_emu.aocx")
+        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/emu_${SIZE}_${kernel_fname}/${kernel_fname}.aocx")
     set(REP_BSTREAM 
-        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${SIZE}pt_${kernel_fname}_rep.aocr")
+        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/rep_${SIZE}_${kernel_fname}/${kernel_fname}.aocr")
     set(SYN_BSTREAM 
-        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${SIZE}pt_${kernel_fname}.aocx")
+        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/syn_${SIZE}_${kernel_fname}/${kernel_fname}.aocx")
 
     # Emulation Target
     add_custom_command(OUTPUT ${EMU_BSTREAM}
