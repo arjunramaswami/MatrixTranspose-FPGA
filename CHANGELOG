@@ -9,5 +9,4 @@ All notable changes to this project will be documented in this file.
 - Bitreverse Diagonal 2d Transpose 
 - Diagonal 2d Transpose 
 - CMake Build System
-- Integrated other transposition kernels
 - CI/CD

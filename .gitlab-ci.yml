@@ -19,12 +19,12 @@ build-all:
   artifacts:
     paths:
       - build/bin/host
-      - build/bin/64pt_diagonal_bitrev_emu.aocx
+      - build/bin/emu_64_diagonal_bitrev/diagonal_bitrev.aocx
 
 test-all:
   stage: test
   script:
     - cd build/bin/
-    - CL_CONTEXT_EMULATOR_DEVICE_INTELFPGA=1 ./host -n 64 -b 1 -p 64pt_diagonal_bitrev_emu.aocx
+    - CL_CONTEXT_EMULATOR_DEVICE_INTELFPGA=1 ./host -n 64 -b 1 -p emu_64_diagonal_bitrev/diagonal_bitrev.aocx
   dependencies:
     - build-all
