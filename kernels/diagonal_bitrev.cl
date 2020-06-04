@@ -1,5 +1,19 @@
 // Authors: Arjun Ramaswami, Tobias Kenter
 
+/*
+* This file performs the transpose of 2d square matrix based on the diagonal 
+* transposition algorithm.
+*
+* TODO: combine rotate_in and bitrev to a single buffer:
+*   - written to sequential addresses
+*   - read from bitreverse + rotation addresses
+*   following rotate_out 's implementation.
+*/
+
+
+#define LOGPOINTS 3
+#define POINTS (1 << LOGPOINTS)
+
 #include "mtrans_config.h"
 
 #pragma OPENCL EXTENSION cl_intel_channels : enable
@@ -16,7 +30,6 @@ int bit_reversed(int x, int bits) {
   }
   return y;
 }
-
 
 __attribute__((max_global_work_dim(0)))
 kernel void fetch(global const volatile float2 * restrict src, int batch) {
@@ -48,7 +61,7 @@ kernel void transpose(int batch) {
   const unsigned N = (1 << LOGN);
   const unsigned DEPTH = (1 << (LOGN + LOGN - LOGPOINTS));
 
-  // iterate over N 2d matrices
+  // iterate over batches of 2d matrices
   for(unsigned k = 0 ; k < batch; k++){
 
     // Buffer with width - 8 points, depth - (N*N / 8), banked column-wise
@@ -57,11 +70,21 @@ kernel void transpose(int batch) {
     // iterate within a 2d matrix
     for(unsigned row = 0; row < N; row++){
 
-      // Temporary buffer to rotate before filling the matrix
-      //float2 rotate_in[POINTS];
+      // temp buffer to store N elements in bitreverse order
       float2 bitrev[N];
 
-      // bit-reversed ordered input stored in normal order
+      /* LOGN bit bitreversal. 
+      *  Example of LOGN=6, N=64:
+      *   orig_index   ->  0  1  2  3  4  5  6  7  
+      *   bitrev_index ->  0 32 16 48  8 40 24 54
+      *  
+      *  The next 8 points are stored with a stride of 1 i.e.
+      *   bitrev_index ->  1 33 17 49  9 41 25 55
+      *
+      * Bitrev: avoiding arbitration
+      *   - writes in bitreverse addresses
+      *   - reads sequential addresses
+      */
       for(unsigned j = 0; j < (N / 8); j++){
         bitrev[j] = read_channel_intel(chanintrans[0]);               // 0
         bitrev[4 * N / 8 + j] = read_channel_intel(chanintrans[1]);   // 32
@@ -74,10 +97,29 @@ kernel void transpose(int batch) {
       }
 
       /* For each outer loop iteration, N data items are processed.
+       * Considering BRAM is 512bits (8 points) wide,
+       * rotations should wrap around.
+       *
        * These N data items should reside in N/8 rows in buf.
        * Each of this N/8 rows are rotated by 1
-       * Considering BRAM is POINTS wide, rotations should wrap around at POINTS
-       * row & (POINTS - 1)
+       * 
+       * Example, N = 64, matrix = 64x64
+       *  --------------------------------
+       *    0  1  2  3  4  5  6  7 
+       *    8  9 10 11 12 13 14 15 
+       *   16 17 18 .. 
+       *   24 25 26 ..
+       *   39 32 33 ..     <- rotated by 1 
+       *   48 40 41 ..
+       *   ...
+       *   ...
+       *   70 71 64 65 ..  <- rotated by 2
+       *   78 79 80 81 .. 
+       *   ...
+       *  --------------------------------
+       *
+       * Therefore, every N / 8 rows are rotated by 1
+       *  i.e. same as row 
        */
       unsigned rot = row & (POINTS - 1);
 
@@ -85,31 +127,49 @@ kernel void transpose(int batch) {
       // N/8 rows filled with the same rotation
       for(unsigned j = 0; j < N / 8; j++){
 
+        // Temporary buffer of POINTS length to rotate before filling the matrix
+        // rotate_in: avoiding arbitration
+        //  - writes sequential addresses
+        //  - reads rotated addresses
         float2 rotate_in[POINTS];
         #pragma unroll 8
         for(unsigned i = 0; i < POINTS; i++){
           rotate_in[i] = bitrev[(j * POINTS) + i];
         }
 
+        // where: index of rotation, domain of values [0,7]
+        // buf_row: row id
         #pragma unroll 8
         for(unsigned i = 0; i < 8; i++){
-            unsigned where = ((i + POINTS) - rot) & (POINTS - 1);
-            unsigned buf_row = (row * (N / 8)) + j;
-            buf[buf_row][i] = rotate_in[where];
+          unsigned where = ((i + POINTS) - rot) & (POINTS - 1);
+          unsigned buf_row = (row * (N / 8)) + j;
+          buf[buf_row][i] = rotate_in[where];
         }
       }
     }
 
     for(unsigned row = 0; row < N; row++){
 
+      // rotate_out: N point buffer required to bitreverse
+      // writes: sequential addresses
+      // reads: rotation + bitreverse addresses
       float2 rotate_out[N];
       unsigned offset = 0;            
 
+      // col_rotate selects elements within each row
+      //  - values between [0, 7]
+      //
+      // row_rotate selects rows based on:
+      //  - strides of N / 8 rows: j << (LOGN << LOGPOINTS): N/8, 2N/8 ..
+      //  - every N / 8 rows, rotate
+      //  buf[0][0], buf[4][1], buf[8][2]
       #pragma unroll 8
       for(unsigned j = 0; j < N; j++){
-        unsigned rot = (DEPTH + j - row) << (LOGN - LOGPOINTS) & (DEPTH -1);
+
         unsigned offset = row >> LOGPOINTS;
+        unsigned rot = (DEPTH + j - row) << (LOGN - LOGPOINTS) & (DEPTH -1);
         unsigned row_rotate = offset + rot;
+
         unsigned col_rotate = j & (POINTS - 1);
 
         rotate_out[j] = buf[row_rotate][col_rotate];
@@ -138,9 +198,7 @@ kernel void transpose(int batch) {
         write_channel_intel(chanouttrans[7], rotate_out[chan7]); 
       }
     } // row
-
   } // iter matrices
-        
 }
 
 __attribute__((max_global_work_dim(0)))

@@ -5,7 +5,7 @@ project(fpga-matrixTranspose VERSION 1.0.0
   DESCRIPTION "Matrix Transpose for FPGA"
   LANGUAGES C CXX)
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
 # Setup submodules that are required
 find_package(Git QUIET)
@@ -31,8 +31,6 @@ find_package(IntelFPGAOpenCL REQUIRED)
 
 # OpenCL kernel targets generation
 ## setup cmake variables to generate header file
-set(LOG_POINTS 3 CACHE STRING "Log of per sample data points")
-math(EXPR POINTS "1 << ${LOG_POINTS}")
 set(LOG_SIZE 6 CACHE STRING "Log of length of the square matrix")
 math(EXPR SIZE "1 << ${LOG_SIZE}")
 message("-- Log of length of matrix is ${LOG_SIZE}")

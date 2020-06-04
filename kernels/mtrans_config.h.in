@@ -5,7 +5,4 @@
 #define LOGN @LOG_SIZE@ 
 #define SIZE @SIZE@ 
 
-#define LOGPOINTS @LOG_POINTS@
-#define POINTS @POINTS@
-
 #endif // MTRANS_CONFIG_

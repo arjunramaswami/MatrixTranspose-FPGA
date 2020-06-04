@@ -17,8 +17,8 @@ target_compile_options(host
   
 target_include_directories(host
   PRIVATE include
-          ${IntelFPGAOpenCL_INCLUDE_DIRS}
-          ${CMAKE_SOURCE_DIR}/extern/argparse)
+          "${IntelFPGAOpenCL_INCLUDE_DIRS}"
+          "${CMAKE_SOURCE_DIR}/extern/argparse")
 
 target_link_libraries(host
-  PUBLIC ${IntelFPGAOpenCL_LIBRARIES} m)
+  PRIVATE "${IntelFPGAOpenCL_LIBRARIES}" m)
