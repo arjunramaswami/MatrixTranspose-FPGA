@@ -33,6 +33,17 @@ CL_CONTEXT_EMULATOR_DEVICE_INTELFPGA=1 ./host -n 64 -b 1 -p <path to aocx>
 ./host --help   // cmd line params
 ```
 
+## Dependencies
+
+- CMake >= 3.10
+- Intel OpenCL FPGA SDK
+- C Compiler with C11 support
+
+Additional submodules used:
+
+- [argparse](https://github.com/cofyc/argparse.git) for command line argument parsing
+- [hlslib](https://github.com/definelicht/hlslib) for CMake Intel FPGA OpenCL find packages
+
 ## Runtime Parameters
 
 ```bash
