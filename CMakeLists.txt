@@ -42,8 +42,12 @@ configure_file(
   "${CMAKE_BINARY_DIR}/kernels/mtrans_config.h"
 )
 
+# Link argparse as static library
+add_subdirectory(${CMAKE_SOURCE_DIR}/extern/argparse)
+
 # OpenCL host target generation
 add_subdirectory(api/)
+
 
 if (INTELFPGAOPENCL_FOUND)
   add_subdirectory(kernels)

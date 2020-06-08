@@ -5,12 +5,12 @@ cmake_minimum_required(VERSION 3.10)
 # Generate host executable that is required to call OpenCL kernel bitstreams
 # Target: host
 ##
+
 add_executable(host
   src/main.c
   src/transpose_fpga.c
   src/opencl_utils.c
-  src/helper.c
-  ${CMAKE_SOURCE_DIR}/extern/argparse/argparse.c)   
+  src/helper.c)
 
 target_compile_options(host
   PRIVATE -Wall -Werror)
@@ -25,4 +25,4 @@ target_include_directories(host
           "${CMAKE_SOURCE_DIR}/extern/argparse")
 
 target_link_libraries(host
-  PRIVATE "${IntelFPGAOpenCL_LIBRARIES}" m)
+  PRIVATE "${IntelFPGAOpenCL_LIBRARIES}" argparse m)
