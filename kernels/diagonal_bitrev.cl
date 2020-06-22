@@ -23,38 +23,28 @@
 channel float2 chanintrans[POINTS] __attribute__((depth(POINTS)));
 channel float2 chanouttrans[POINTS] __attribute__((depth(POINTS)));
 
-int bit_reversed(int x, int bits) {
-  int y = 0;
-  #pragma unroll 
-  for (int i = 0; i < bits; i++) {
-    y <<= 1;
-    y |= x & 1;
-    x >>= 1;
-  }
-  return y;
-}
-
 __attribute__((max_global_work_dim(0)))
 kernel void fetch(global const volatile float2 * restrict src, int batch) {
   const unsigned N = (1 << LOGN);
+  const unsigned STEPS = (1 << (LOGN - LOGPOINTS)); // N / 8
 
   for(unsigned k = 0; k < (batch * N); k++){ 
     float2 buf[N];
 
-    #pragma unroll 8
+    #pragma unroll POINTS
     for(unsigned i = 0; i < N; i++){
       buf[i & ((1<<LOGN)-1)] = src[(k << LOGN) + i];    
     }
 
-    for(unsigned j = 0; j < (N / 8); j++){
+    for(unsigned j = 0; j < STEPS; j++){
       write_channel_intel(chanintrans[0], buf[j]);               // 0
-      write_channel_intel(chanintrans[1], buf[4 * N / 8 + j]);   // 32
-      write_channel_intel(chanintrans[2], buf[2 * N / 8 + j]);   // 16
-      write_channel_intel(chanintrans[3], buf[6 * N / 8 + j]);   // 48
-      write_channel_intel(chanintrans[4], buf[N / 8 + j]);       // 8
-      write_channel_intel(chanintrans[5], buf[5 * N / 8 + j]);   // 40
-      write_channel_intel(chanintrans[6], buf[3 * N / 8 + j]);   // 24
-      write_channel_intel(chanintrans[7], buf[7 * N / 8 + j]);   // 54
+      write_channel_intel(chanintrans[1], buf[(4 * (N / 8)) + j]);   // 32
+      write_channel_intel(chanintrans[2], buf[(2 * (N / 8)) + j]);   // 16
+      write_channel_intel(chanintrans[3], buf[(6 * (N / 8)) + j]);   // 48
+      write_channel_intel(chanintrans[4], buf[(N / 8) + j]);       // 8
+      write_channel_intel(chanintrans[5], buf[(5 * (N / 8)) + j]);   // 40
+      write_channel_intel(chanintrans[6], buf[(3 * (N / 8)) + j]);   // 24
+      write_channel_intel(chanintrans[7], buf[(7 * (N / 8)) + j]);   // 54
     }
   }
 }
@@ -63,6 +53,10 @@ __attribute__((max_global_work_dim(0)))
 kernel void transpose(int batch) {
   const unsigned N = (1 << LOGN);
   const unsigned DEPTH = (1 << (LOGN + LOGN - LOGPOINTS));
+  const unsigned STEPS = (1 << (LOGN - LOGPOINTS)); // N / 8
+
+  // for use in expression to avoid type errors
+  const unsigned NUM_POINTS = POINTS; 
 
   // iterate over batches of 2d matrices
   for(unsigned k = 0 ; k < batch; k++){
@@ -88,15 +82,15 @@ kernel void transpose(int batch) {
       *   - writes in bitreverse addresses
       *   - reads sequential addresses
       */
-      for(unsigned j = 0; j < (N / 8); j++){
+      for(unsigned j = 0; j < STEPS; j++){
         bitrev[j] = read_channel_intel(chanintrans[0]);               // 0
-        bitrev[4 * N / 8 + j] = read_channel_intel(chanintrans[1]);   // 32
-        bitrev[2 * N / 8 + j] = read_channel_intel(chanintrans[2]);   // 16
-        bitrev[6 * N / 8 + j] = read_channel_intel(chanintrans[3]);   // 48
-        bitrev[N / 8 + j] = read_channel_intel(chanintrans[4]);       // 8
-        bitrev[5 * N / 8 + j] = read_channel_intel(chanintrans[5]);   // 40
-        bitrev[3 * N / 8 + j] = read_channel_intel(chanintrans[6]);   // 24
-        bitrev[7 * N / 8 + j] = read_channel_intel(chanintrans[7]);   // 54
+        bitrev[(4 * (N / 8))+ j] = read_channel_intel(chanintrans[1]);   // 32
+        bitrev[(2 * (N / 8))+ j] = read_channel_intel(chanintrans[2]);   // 16
+        bitrev[(6 * (N / 8))+ j] = read_channel_intel(chanintrans[3]);   // 48
+        bitrev[(N / 8) + j] = read_channel_intel(chanintrans[4]);       // 8
+        bitrev[(5 * (N / 8)) + j] = read_channel_intel(chanintrans[5]);   // 40
+        bitrev[(3 * (N / 8)) + j] = read_channel_intel(chanintrans[6]);   // 24
+        bitrev[(7 * (N / 8)) + j] = read_channel_intel(chanintrans[7]);   // 54
       }
 
       /* For each outer loop iteration, N data items are processed.
@@ -124,32 +118,34 @@ kernel void transpose(int batch) {
        * Therefore, every N / 8 rows are rotated by 1
        *  i.e. same as row 
        */
-      unsigned rot = row & (POINTS - 1);
 
       // fill the POINTS wide row of the buffer each iteration
       // N/8 rows filled with the same rotation
-      for(unsigned j = 0; j < N / 8; j++){
+      for(unsigned j = 0; j < STEPS; j++){
 
         // Temporary buffer of POINTS length to rotate before filling the matrix
         // rotate_in: avoiding arbitration
         //  - writes sequential addresses
         //  - reads rotated addresses
-        float2 rotate_in[POINTS];
-        #pragma unroll 8
+        float2 rotate_in[POINTS]__attribute__((memory("MLAB")));
+        #pragma unroll POINTS 
         for(unsigned i = 0; i < POINTS; i++){
-          rotate_in[i] = bitrev[(j * POINTS) + i];
+          rotate_in[i] = bitrev[(j * NUM_POINTS) + i];
         }
 
         // where: index of rotation, domain of values [0,7]
         // buf_row: row id
-        #pragma unroll 8
-        for(unsigned i = 0; i < 8; i++){
-          unsigned where = ((i + POINTS) - rot) & (POINTS - 1);
-          unsigned buf_row = (row * (N / 8)) + j;
+        #pragma unroll POINTS 
+        for(unsigned i = 0; i < POINTS; i++){
+          unsigned rot = (row & (NUM_POINTS - 1));
+          unsigned where = ((i + NUM_POINTS) - rot) & (NUM_POINTS - 1);
+          //unsigned buf_row = (row * (N / 8)) + j;
+          unsigned buf_row = (row << (LOGN - LOGPOINTS)) + j;
+
           buf[buf_row][i] = rotate_in[where];
         }
       }
-    }
+    } // row
 
     for(unsigned row = 0; row < N; row++){
 
@@ -159,7 +155,7 @@ kernel void transpose(int batch) {
       float2 rotate_out[N];
       unsigned offset = 0;            
 
-      #pragma unroll 8
+      #pragma unroll POINTS
       for(unsigned j = 0; j < N; j++){
 
         /* 
@@ -175,14 +171,14 @@ kernel void transpose(int batch) {
         *
         *  Therefore, (DEPTH + j - row)
         */
-        unsigned rot = (DEPTH + j - row) << (LOGN - LOGPOINTS) & (DEPTH -1);
+        unsigned rot = ((DEPTH + j - row) << (LOGN - LOGPOINTS)) & (DEPTH -1);
 
         /* 
         * offset: every 8 points, increase by 1 i.e., shift to the next row.
         *    0  1  2  3  4  5  6  7 
         *    8  9 10 11 12 13 14 15 <- offset
         */
-        unsigned offset = row >> LOGPOINTS;
+        unsigned offset = (row >> LOGPOINTS);
 
         unsigned row_rotate = offset + rot;
 
@@ -190,7 +186,7 @@ kernel void transpose(int batch) {
         /* col_rotate selects elements within each row
         *   - values between [0, 7]
         */
-        unsigned col_rotate = j & (POINTS - 1);
+        unsigned col_rotate = j & (NUM_POINTS - 1);
 
         /* Contents of rotate_out:
         * j=0:  0 64 128 192 256 ...
@@ -203,7 +199,7 @@ kernel void transpose(int batch) {
         rotate_out[j] = buf[row_rotate][col_rotate];
       }
 
-      for(unsigned j = 0; j < N / 8; j++){
+      for(unsigned j = 0; j < STEPS; j++){
         unsigned rot_out = row & (N - 1);
         
         unsigned chan0 = (rot_out + j) & (N - 1);                 // 0
@@ -231,13 +227,14 @@ kernel void transpose(int batch) {
 __attribute__((max_global_work_dim(0)))
 kernel void store(global float2 * restrict dest, int batch) {
   const int N = (1 << LOGN);
+  const unsigned STEPS = (1 << (LOGN - LOGPOINTS)); // N / 8
 
   for(unsigned i = 0; i < batch; i++){
 
     for(unsigned j = 0; j < N; j++){
 
       float2 buf[N];
-      for(unsigned k = 0; k < (N / 8); k++){
+      for(unsigned k = 0; k < STEPS; k++){
 
         buf[k] = read_channel_intel(chanouttrans[0]);
         buf[4 * N / 8 + k] = read_channel_intel(chanouttrans[1]);
@@ -249,17 +246,13 @@ kernel void store(global float2 * restrict dest, int batch) {
         buf[7 * N / 8 + k] = read_channel_intel(chanouttrans[7]);
       }
 
-      for(unsigned k = 0; k < (N / 8); k++){
-        unsigned where = (i * N * N) + (j * N) + (k * 8);
+      for(unsigned k = 0; k < STEPS; k++){
+        unsigned where = (i * N * N) + (j * N) + (k * POINTS);
 
-        dest[where + 0] = buf[(k * 8) + 0];
-        dest[where + 1] = buf[(k * 8) + 1];
-        dest[where + 2] = buf[(k * 8) + 2];
-        dest[where + 3] = buf[(k * 8) + 3];
-        dest[where + 4] = buf[(k * 8) + 4];
-        dest[where + 5] = buf[(k * 8) + 5];
-        dest[where + 6] = buf[(k * 8) + 6];
-        dest[where + 7] = buf[(k * 8) + 7];
+        #pragma unroll POINTS
+        for(unsigned l = 0; l < POINTS; l++){
+          dest[where + l] = buf[(k * POINTS) + l];
+        }
       }
     }
   }
