@@ -204,28 +204,21 @@ fpga_t mTranspose(int N, float2 *inp, float2 *out, int batch, int use_svm, int i
     checkError(status, "Failed to launch kernel");
   }
   else{
-    printf("fetch kernel \n");
     status = clEnqueueTask(queue1, fetch_kernel, 0, NULL, NULL);
     checkError(status, "Failed to launch fetch kernel");
 
-    printf("transpose kernel \n");
     status = clEnqueueTask(queue2, transpose_kernel, 0, NULL, NULL);
     checkError(status, "Failed to launch transpose kernel");
 
-    printf("store kernel \n");
     status = clEnqueueTask(queue3, store_kernel, 0, NULL, NULL);
     checkError(status, "Failed to launch store kernel");
-    printf("finished store kernel \n");
   }
 
   // Wait for all command queues to complete pending events
-  printf("Finishing Queue1\n");
   status = clFinish(queue1);
   checkError(status, "failed to finish");
-  printf("Finishing Queue2\n");
   status = clFinish(queue2);
   checkError(status, "failed to finish");
-  printf("Finishing Queue3\n");
   status = clFinish(queue3);
   checkError(status, "failed to finish");
 
@@ -234,22 +227,18 @@ fpga_t mTranspose(int N, float2 *inp, float2 *out, int batch, int use_svm, int i
 
   mTranspose_time.pcie_read_t = getTimeinMilliSec();
 
-  printf("Reading from buffer %d %d\n", N, batch);
   status = clEnqueueReadBuffer(queue1, d_outData, CL_TRUE, 0, buf_sz, out, 0, NULL, NULL);
 
-  printf("finished Reading from buffer \n");
   mTranspose_time.pcie_read_t = getTimeinMilliSec() - mTranspose_time.pcie_read_t;
   checkError(status, "Failed to read data from device");
 
   queue_cleanup();
 
-  printf("Queue Cleanup \n");
   if (d_inData)
   	clReleaseMemObject(d_inData);
   if (d_outData)
   	clReleaseMemObject(d_outData);
 
-  printf("Kernel Cleanup \n");
   if(fetch_kernel) 
     clReleaseKernel(fetch_kernel);  
   if(transpose_kernel) 
