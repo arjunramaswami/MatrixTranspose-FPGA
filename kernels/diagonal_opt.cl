@@ -6,7 +6,7 @@ void transpose_step(float2 *data, float2 bufA[][POINTS], float2 bufB[][POINTS], 
   unsigned row = step & (DEPTH - 1);
   unsigned rot = (row >> (LOGN - LOGPOINTS)) & (POINTS - 1);
 
-  #pragma unroll 8
+  #pragma unroll POINTS
   for(unsigned i = 0; i < POINTS; i++){
       bufA[row][i] = data[((i + POINTS) - rot) & (POINTS -1)];
   }
@@ -15,7 +15,7 @@ void transpose_step(float2 *data, float2 bufA[][POINTS], float2 bufB[][POINTS], 
   unsigned offset = (step >> LOGN) & ((N / 8) - 1);  // 0, .. N / POINTS
   float2 rotate_out[POINTS];
 
-  #pragma unroll 8
+  #pragma unroll POINTS
   for(unsigned i = 0; i < POINTS; i++){
     unsigned rot = ((POINTS + i - (step >> (LOGN - LOGPOINTS))) << (LOGN - LOGPOINTS)) & (N - 1);
     unsigned row_rotate = base + offset + rot;
