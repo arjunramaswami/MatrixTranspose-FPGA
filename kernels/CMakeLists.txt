@@ -21,7 +21,7 @@ message("Selecting FPGA Board: ${FPGA_BOARD_NAME}")
 #   - ${kernel_name}_syn: to generate synthesis binary
 ##
 include(${CMAKE_SOURCE_DIR}/cmake/build_kernel.cmake)
-set(kernels diagonal_bitrev diagonal simple_bitrev simple diagonal_bitrev_test diagonal_bitrev_test2 diagonal_dbl matrixTranspose)
+set(kernels diagonal_bitrev diagonal simple_bitrev simple matrixTranspose)
 
 if (INTELFPGAOPENCL_FOUND)
   build_mTranspose(${kernels})
