@@ -16,15 +16,17 @@ build-all:
     - make
     - chmod +x bin/host
     - make diagonal_bitrev_emu
+    - make matrixTranspose_emu
   artifacts:
     paths:
       - build/bin/host
       - build/bin/emu_64_diagonal_bitrev/diagonal_bitrev.aocx
-
+      - build/bin/emu_64_matrixTranspose/matrixTranspose.aocx
 test-all:
   stage: test
   script:
     - cd build/bin/
     - CL_CONTEXT_EMULATOR_DEVICE_INTELFPGA=1 ./host -n 64 -b 1 -p emu_64_diagonal_bitrev/diagonal_bitrev.aocx
+    - CL_CONTEXT_EMULATOR_DEVICE_INTELFPGA=1 ./host -n 64 -b 1 -p emu_64_matrixTranspose/matrixTranspose.aocx
   dependencies:
     - build-all
