@@ -19,7 +19,7 @@ Listed below:
 ```bash
 mkdir build && cd build
 
-cmake -DLOG_SIZE=6 ..   // log of length of a side of the matrix
+cmake -DLOGSIZE=6 ..   // log of length of a side of the matrix
 
 make            // build host, creates binary named `host`
 
@@ -59,6 +59,6 @@ Basic Options
 
 ## Compile Definitions
 
-- `LOG_SIZE`: set the log of the length of the matrix. Example: `-DLOG_SIZE=6`.
+- `LOGSIZE`: set the log of the length of the matrix. Example: `-DLOGSIZE=6`.
 - `USE_DEBUG`: prints the fpga and cpu transpose outputs to compare.
   

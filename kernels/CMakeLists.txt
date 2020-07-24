@@ -17,13 +17,13 @@ endif()
 # OpenCL kernel targets generation
 ## setup cmake variables to generate header file
 set(LOGPOINTS 3 CACHE STRING "Log of per sample data points")
-math(EXPR POINTS "1 << ${LOG_POINTS}")
+math(EXPR POINTS "1 << ${LOGPOINTS}")
 
-set(LOG_SIZE 6 CACHE STRING "Log of length of the square matrix")
-math(EXPR SIZE "1 << ${LOG_SIZE}")
-math(EXPR DEPTH "1 << (${LOG_SIZE} + ${LOG_SIZE} - ${LOGPOINTS})")
+set(LOGSIZE 6 CACHE STRING "Log of length of the square matrix")
+math(EXPR SIZE "1 << ${LOGSIZE}")
+math(EXPR DEPTH "1 << (${LOGSIZE} + ${LOGSIZE} - ${LOGPOINTS})")
 
-message("-- Log of length of matrix is ${LOG_SIZE}")
+message("-- Log of length of matrix is ${LOGSIZE}")
 
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/common/mtrans_config.h.in"
