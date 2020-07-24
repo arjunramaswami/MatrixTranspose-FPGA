@@ -5,10 +5,6 @@
 * Input and output are in normal order
 */
 
-// Macros for the 8 point 1d FFT
-#define LOGPOINTS 3
-#define POINTS (1 << LOGPOINTS)
-
 #include "mtrans_config.h"
 
 // Log of the number of replications of the pipeline

@@ -14,9 +14,6 @@
 *       bitreverses back to normal order and stores back to ddr
 */
 
-#define LOGPOINTS 3
-#define POINTS (1 << LOGPOINTS)
-
 #include "mtrans_config.h"
 
 #pragma OPENCL EXTENSION cl_intel_channels : enable
@@ -52,7 +49,6 @@ kernel void fetch(global const volatile float2 * restrict src, int batch) {
 __attribute__((max_global_work_dim(0)))
 kernel void transpose(int batch) {
   const unsigned N = (1 << LOGN);
-  const unsigned DEPTH = (1 << (LOGN + LOGN - LOGPOINTS));
   const unsigned STEPS = (1 << (LOGN - LOGPOINTS)); // N / 8
 
   // for use in expression to avoid type errors
@@ -254,6 +250,7 @@ kernel void store(global float2 * restrict dest, int batch) {
           dest[where + l] = buf[(k * POINTS) + l];
         }
       }
+      
     }
   }
 }

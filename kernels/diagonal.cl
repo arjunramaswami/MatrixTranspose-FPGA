@@ -6,9 +6,6 @@
 * Inputs to transposition and outputs from transposition are in normal order as * required by the FFT kernels.
 */
 
-#define LOGPOINTS 3
-#define POINTS (1 << LOGPOINTS)
-
 #include "mtrans_config.h"
 
 // Log of the number of replications of the pipeline
@@ -40,7 +37,6 @@ kernel void fetch(global const volatile float2 * restrict src, int batch) {
 __attribute__((max_global_work_dim(0)))
 kernel void transpose(int batch) {
   const unsigned N = (1 << LOGN);
-  const unsigned DEPTH = (1 << (LOGN + LOGN - LOGPOINTS));
 
   /* Input: Create M20ks banked column-wise, fill with rotated data
    *  - width : 512 bits or 8 complex or 8 banks, since input sample size
@@ -216,7 +212,7 @@ kernel void transpose(int batch) {
       // store data into temp buffer
       #pragma unroll 8
       for(unsigned i = 0; i < POINTS; i++){
-        unsigned rot = ((POINTS + i - (row >> (LOGN - LOGPOINTS))) << (LOGN - LOGPOINTS)) & (N - 1);
+        unsigned rot = ( (POINTS + i - (row >> (LOGN - LOGPOINTS))) << (LOGN - LOGPOINTS)) & (N - 1);
         unsigned row_rotate  = base + offset + rot;
         rotate_out[i] = buf[row_rotate][i];
       }

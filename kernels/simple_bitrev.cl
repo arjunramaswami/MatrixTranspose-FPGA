@@ -70,14 +70,6 @@ kernel void transpose(int batch) {
     }
 
     for(unsigned i = 0; i < N; i++){
-      for(unsigned k = 0; k < N; k++){
-        printf("%f ", buf[(i*N) + k].x);
-      }
-      printf("\n");
-    }
-    printf("\n\n");
-
-    for(unsigned i = 0; i < N; i++){
       revcolt = bit_reversed(i, LOGN);
 
       for(unsigned k = 0; k < (N / 8); k++){
@@ -116,10 +108,6 @@ kernel void store(global float2 * restrict dest, int batch) {
       buf[where + 7] = read_channel_intel(chanouttrans[7]);
     }
 
-    for(unsigned k = 0; k < N; k++){
-      printf("%d: %f\n", k, buf[k].x);
-    }
-    printf("\n\n");
     for(unsigned k = 0; k < (N / 8); k++){
       unsigned where = (j * N) + (k * 8);
       //unsigned rev = bit_reversed((k * POINTS), LOGN);
