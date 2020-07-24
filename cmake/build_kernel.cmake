@@ -7,30 +7,14 @@
 #   - ${kernel_name}_rep: to generate report
 #   - ${kernel_name}_syn: to generate synthesis binary
 ## 
-
-set(CL_INCL_DIR "-I${CMAKE_BINARY_DIR}/kernels")
-
-set(CL_HEADER "${CMAKE_BINARY_DIR}/kernels/mtrans_config.h")
-
-## Flags for different target options
-set(AOC_FLAGS "-g -v -fpc -fp-relaxed -no-interleaving=default" CACHE STRING "AOC compiler flags")
-separate_arguments(AOC_FLAGS)
-
-set(EMU_FLAGS "-legacy-emulator -march=emulator" CACHE STRING "AOC emulation flags")
-separate_arguments(EMU_FLAGS)
-
-set(REP_FLAGS "-report -rtl" CACHE STRING "AOC report flags")
-separate_arguments(REP_FLAGS)
-
-set(PROF_FLAGS "-profile=all" CACHE STRING "AOC profile flags")
-separate_arguments(PROF_FLAGS)
-
 function(build_mTranspose)
 
   foreach(kernel_fname ${ARGN})
 
     set(CL_SRC "${CMAKE_SOURCE_DIR}/kernels/${kernel_fname}.cl")
-
+    set(CL_INCL_DIR "-I${CMAKE_BINARY_DIR}/kernels/common")
+    set(CL_HEADER "${CMAKE_BINARY_DIR}/kernels/common/mtrans_config.h")
+    
     set(EMU_BSTREAM 
         "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/emu_${SIZE}_${kernel_fname}/${kernel_fname}.aocx")
     set(REP_BSTREAM 

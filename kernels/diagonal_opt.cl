@@ -1,14 +1,13 @@
-void transpose_step(float2 *data, float2 bufA[][POINTS], float2 bufB[][POINTS], unsigned step, unsigned LOGN) {
+void transpose_step(float2 data[POINTS], float2 bufA[DEPTH][POINTS], float2 bufB[DEPTH][POINTS], unsigned step) {
 
   const unsigned N = (1 << LOGN);
-  const unsigned DEPTH = (1 << (LOGN + LOGN - LOGPOINTS));
 
   unsigned row = step & (DEPTH - 1);
   unsigned rot = (row >> (LOGN - LOGPOINTS)) & (POINTS - 1);
 
   #pragma unroll POINTS
   for(unsigned i = 0; i < POINTS; i++){
-      bufA[row][i] = data[((i + POINTS) - rot) & (POINTS -1)];
+    bufA[row][i] = data[((i + POINTS) - rot) & (POINTS -1)];
   }
 
   unsigned base = (step & (N / POINTS - 1)) << LOGN; // 0, N, 2N, ...

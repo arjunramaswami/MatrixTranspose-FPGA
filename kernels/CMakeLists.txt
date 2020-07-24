@@ -5,13 +5,40 @@ cmake_minimum_required(VERSION 3.10)
 # Get FPGA Board Name from env variable or use default
 # Set it to CMakeCache
 ##
-set(BOARD_NAME $ENV{FPGA_BOARD_NAME})
-if(BOARD_NAME)
-  set(FPGA_BOARD_NAME ${BOARD_NAME} CACHE STRING "Target Board")
-else()
-  set(FPGA_BOARD_NAME p520_hpc_sg280l CACHE STRING "Target Board")
+if(NOT DEFINED FPGA_BOARD_NAME)
+  if(DEFINED $ENV{FPGA_BOARD_NAME})
+    set(FPGA_BOARD_NAME $ENV{FPGA_BOARD_NAME} CACHE STRING "Target Board")
+  else()
+    set(FPGA_BOARD_NAME p520_hpc_sg280l CACHE STRING "Target Board")
+  endif()
 endif()
-message("Selecting FPGA Board: ${FPGA_BOARD_NAME}")
+
+
+# OpenCL kernel targets generation
+## setup cmake variables to generate header file
+set(LOGPOINTS 3 CACHE STRING "Log of per sample data points")
+math(EXPR POINTS "1 << ${LOG_POINTS}")
+
+set(LOG_SIZE 6 CACHE STRING "Log of length of the square matrix")
+math(EXPR SIZE "1 << ${LOG_SIZE}")
+math(EXPR DEPTH "1 << (${LOG_SIZE} + ${LOG_SIZE} - ${LOGPOINTS})")
+
+message("-- Log of length of matrix is ${LOG_SIZE}")
+
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/common/mtrans_config.h.in"
+  "${CMAKE_BINARY_DIR}/kernels/common/mtrans_config.h"
+)
+
+## Flags for different target options
+set(AOC_FLAGS "-g -v -fp-relaxed -no-interleaving=default" CACHE STRING "AOC compiler flags")
+separate_arguments(AOC_FLAGS)
+set(EMU_FLAGS "-legacy-emulator -march=emulator" CACHE STRING "AOC emulation flags")
+separate_arguments(EMU_FLAGS)
+set(REP_FLAGS "-report -rtl" CACHE STRING "AOC report flags")
+separate_arguments(REP_FLAGS)
+set(PROF_FLAGS "-profile=all" CACHE STRING "AOC profile flags")
+separate_arguments(PROF_FLAGS)
 
 ## 
 # Call function to create custom build commands

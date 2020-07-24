@@ -6,16 +6,12 @@
 * Inputs to transposition and outputs from transposition are in normal order as * required by the FFT kernels.
 */
 
-#define LOGPOINTS 3
-#define POINTS (1 << LOGPOINTS)
-#define UNROLL_FACTOR POINTS
-
-#include "diagonal_opt.cl" 
 #include "mtrans_config.h"
+#include "diagonal_opt.cl" 
 
 #pragma OPENCL EXTENSION cl_intel_channels : enable
-channel float2 chaninTranspose[8] __attribute__((depth(8)));
-channel float2 chanoutTranspose[8] __attribute__((depth(8)));
+channel float2 chaninTranspose[POINTS] __attribute__((depth(POINTS)));
+channel float2 chanoutTranspose[POINTS] __attribute__((depth(POINTS)));
 
 __attribute__((max_global_work_dim(0)))
 kernel void fetch(global const volatile float2 * restrict src, int batch) {
@@ -37,10 +33,13 @@ kernel void fetch(global const volatile float2 * restrict src, int batch) {
 __attribute__((max_global_work_dim(0)))
 kernel void transpose(int batch) {
   const unsigned N = (1 << LOGN);
-  const unsigned DEPTH = (1 << (LOGN + LOGN - LOGPOINTS)); // (N * N / 8)
   bool is_bufA = false;
 
-  float2 bufA[DEPTH][POINTS], bufB[DEPTH][POINTS];
+  //float2 __attribute__((memory, numbanks(8), bankwidth(8))) bufA[DEPTH][POINTS];
+  //float2 __attribute__((memory, bank_bits(5,4,3))) bufA[DEPTH][POINTS];
+  //float2 bufB[DEPTH][POINTS];
+
+   float2 bufA[DEPTH][POINTS], bufB[DEPTH][POINTS];
 
   for(unsigned step = 0; step < ((batch * DEPTH) + DEPTH); step++){
 
@@ -61,10 +60,10 @@ kernel void transpose(int batch) {
 
     is_bufA = ((step & (DEPTH - 1)) == 0) ? !is_bufA : is_bufA;
 
-    transpose_step(data, 
+    transpose_step(data,
       is_bufA ? bufA : bufB, 
       is_bufA ? bufB : bufA, 
-      step, LOGN);
+      step);
 
     if (step >= DEPTH) {
       write_channel_intel(chanoutTranspose[0], data[0]);
