@@ -92,7 +92,7 @@ void verify_mTranspose(float2 *fpga_out, float2 *cpu_out, int N, int batch){
     mag_sum += magnitude;
     noise_sum += noise;
 
-#ifdef DEBUG
+#ifndef NDEBUG
     printf("%zu: fpga - (%f %f) cpu - (%f %f)\n", i, fpga_out[i].x, fpga_out[i].y, cpu_out[i].x, cpu_out[i].y);
 #endif
 
