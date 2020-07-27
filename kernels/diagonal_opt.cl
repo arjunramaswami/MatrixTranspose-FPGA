@@ -1,15 +1,5 @@
-void transpose_step(float2 data[POINTS], float2 bufA[DEPTH][POINTS], float2 bufB[DEPTH][POINTS], unsigned step) {
-
+void readBuf(float2 data[POINTS], float2 bufA[DEPTH][POINTS], unsigned step){
   const unsigned N = (1 << LOGN);
-
-  unsigned row = step & (DEPTH - 1);
-  unsigned rot = (row >> (LOGN - LOGPOINTS)) & (POINTS - 1);
-
-  #pragma unroll POINTS
-  for(unsigned i = 0; i < POINTS; i++){
-    bufA[row][i] = data[((i + POINTS) - rot) & (POINTS -1)];
-  }
-
   unsigned base = (step & (N / POINTS - 1)) << LOGN; // 0, N, 2N, ...
   unsigned offset = (step >> LOGN) & ((N / 8) - 1);  // 0, .. N / POINTS
   float2 rotate_out[POINTS];
@@ -18,7 +8,7 @@ void transpose_step(float2 data[POINTS], float2 bufA[DEPTH][POINTS], float2 bufB
   for(unsigned i = 0; i < POINTS; i++){
     unsigned rot = ((POINTS + i - (step >> (LOGN - LOGPOINTS))) << (LOGN - LOGPOINTS)) & (N - 1);
     unsigned row_rotate = base + offset + rot;
-    rotate_out[i] = bufB[row_rotate][i];
+    rotate_out[i] = bufA[row_rotate][i];
   }
 
   unsigned rot_out = (step >> (LOGN - LOGPOINTS)) & (POINTS - 1);
@@ -30,4 +20,16 @@ void transpose_step(float2 data[POINTS], float2 bufA[DEPTH][POINTS], float2 bufB
   data[5] = rotate_out[(5 + rot_out) & (POINTS - 1)];
   data[6] = rotate_out[(6 + rot_out) & (POINTS - 1)];
   data[7] = rotate_out[(7 + rot_out) & (POINTS - 1)];
+}
+
+void writeBuf(float2 data[POINTS], float2 bufA[DEPTH][POINTS], unsigned step){
+  const unsigned N = (1 << LOGN);
+
+  unsigned row = step & (DEPTH - 1);
+  unsigned rot = (row >> (LOGN - LOGPOINTS)) & (POINTS - 1);
+
+  #pragma unroll POINTS
+  for(unsigned i = 0; i < POINTS; i++){
+    bufA[row][i] = data[((i + POINTS) - rot) & (POINTS -1)];
+  }
 }

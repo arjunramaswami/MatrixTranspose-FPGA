@@ -35,15 +35,13 @@ kernel void transpose(int batch) {
   const unsigned N = (1 << LOGN);
   bool is_bufA = false;
 
-  //float2 __attribute__((memory, numbanks(8), bankwidth(8))) bufA[DEPTH][POINTS];
-  //float2 __attribute__((memory, bank_bits(5,4,3))) bufA[DEPTH][POINTS];
-  //float2 bufB[DEPTH][POINTS];
-
-   float2 bufA[DEPTH][POINTS], bufB[DEPTH][POINTS];
+  float2 bufA[2][DEPTH][POINTS];
 
   for(unsigned step = 0; step < ((batch * DEPTH) + DEPTH); step++){
 
     float2 data[POINTS];
+    float2 data_out[POINTS];
+
     if (step < (batch * DEPTH) ) {
       data[0] = read_channel_intel(chaninTranspose[0]);
       data[1] = read_channel_intel(chaninTranspose[1]);
@@ -60,20 +58,18 @@ kernel void transpose(int batch) {
 
     is_bufA = ((step & (DEPTH - 1)) == 0) ? !is_bufA : is_bufA;
 
-    transpose_step(data,
-      is_bufA ? bufA : bufB, 
-      is_bufA ? bufB : bufA, 
-      step);
+    readBuf(data_out, is_bufA ? bufA[1] : bufA[0], step);
+    writeBuf(data, is_bufA ? bufA[0] : bufA[1], step);
 
     if (step >= DEPTH) {
-      write_channel_intel(chanoutTranspose[0], data[0]);
-      write_channel_intel(chanoutTranspose[1], data[1]);
-      write_channel_intel(chanoutTranspose[2], data[2]);
-      write_channel_intel(chanoutTranspose[3], data[3]);
-      write_channel_intel(chanoutTranspose[4], data[4]);
-      write_channel_intel(chanoutTranspose[5], data[5]);
-      write_channel_intel(chanoutTranspose[6], data[6]);
-      write_channel_intel(chanoutTranspose[7], data[7]);
+      write_channel_intel(chanoutTranspose[0], data_out[0]);
+      write_channel_intel(chanoutTranspose[1], data_out[1]);
+      write_channel_intel(chanoutTranspose[2], data_out[2]);
+      write_channel_intel(chanoutTranspose[3], data_out[3]);
+      write_channel_intel(chanoutTranspose[4], data_out[4]);
+      write_channel_intel(chanoutTranspose[5], data_out[5]);
+      write_channel_intel(chanoutTranspose[6], data_out[6]);
+      write_channel_intel(chanoutTranspose[7], data_out[7]);
     }
   }
 
