@@ -1,4 +1,4 @@
-// Authors: Tobias Kenter, Arjun Ramaswami
+// Authors: Arjun Ramaswami, Tobias Kenter
 
 /*
 * This file performs the transpose of 2d square matrix based on the diagonal 
@@ -40,7 +40,7 @@ kernel void transpose(int batch) {
   for(unsigned step = 0; step < ((batch * DEPTH) + DEPTH); step++){
 
     float2 data[POINTS];
-    float2 data_out[POINTS];
+    float2x8 data_out;
 
     if (step < (batch * DEPTH) ) {
       data[0] = read_channel_intel(chaninTranspose[0]);
@@ -58,18 +58,19 @@ kernel void transpose(int batch) {
 
     is_bufA = ((step & (DEPTH - 1)) == 0) ? !is_bufA : is_bufA;
 
-    readBuf(data_out, is_bufA ? bufA[1] : bufA[0], step);
+    data_out = readBuf(is_bufA ? bufA[1] : bufA[0], step);
+
     writeBuf(data, is_bufA ? bufA[0] : bufA[1], step);
 
     if (step >= DEPTH) {
-      write_channel_intel(chanoutTranspose[0], data_out[0]);
-      write_channel_intel(chanoutTranspose[1], data_out[1]);
-      write_channel_intel(chanoutTranspose[2], data_out[2]);
-      write_channel_intel(chanoutTranspose[3], data_out[3]);
-      write_channel_intel(chanoutTranspose[4], data_out[4]);
-      write_channel_intel(chanoutTranspose[5], data_out[5]);
-      write_channel_intel(chanoutTranspose[6], data_out[6]);
-      write_channel_intel(chanoutTranspose[7], data_out[7]);
+      write_channel_intel(chanoutTranspose[0], data_out.i0);
+      write_channel_intel(chanoutTranspose[1], data_out.i1);
+      write_channel_intel(chanoutTranspose[2], data_out.i2);
+      write_channel_intel(chanoutTranspose[3], data_out.i3);
+      write_channel_intel(chanoutTranspose[4], data_out.i4);
+      write_channel_intel(chanoutTranspose[5], data_out.i5);
+      write_channel_intel(chanoutTranspose[6], data_out.i6);
+      write_channel_intel(chanoutTranspose[7], data_out.i7);
     }
   }
 
