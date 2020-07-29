@@ -1,4 +1,4 @@
-// Authors: Arjun Ramaswami, Tobias Kenter
+// Authors: Tobias Kenter, Arjun Ramaswami
 
 typedef struct {
    float2 i0;

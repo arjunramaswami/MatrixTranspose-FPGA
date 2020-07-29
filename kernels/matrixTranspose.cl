@@ -1,4 +1,4 @@
-// Authors: Arjun Ramaswami, Tobias Kenter
+// Authors: Tobias Kenter, Arjun Ramaswami
 
 /*
 * This file performs the transpose of 2d square matrix based on the diagonal 
