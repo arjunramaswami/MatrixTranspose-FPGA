@@ -6,7 +6,7 @@
 
 // Log of the number of points of FFT 
 #define LOGN @LOGSIZE@ 
-#define SIZE @SIZE@ 
+#define N @SIZE@ 
 
 #define DEPTH @DEPTH@
 

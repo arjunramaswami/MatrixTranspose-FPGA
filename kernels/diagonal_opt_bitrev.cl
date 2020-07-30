@@ -11,7 +11,7 @@ typedef struct {
    float2 i7;
 } float2x8;
 
-void bitreverse_out(const unsigned N, float2 *bitrev_outA, float2 *bitrev_outB, float2 rotate_in[POINTS], float2 rotate_out[POINTS], unsigned row){
+void bitreverse_out(float2 bitrev_outA[N], float2 bitrev_outB[N], float2 rotate_in[POINTS], float2 rotate_out[POINTS], unsigned row){
   const unsigned STEPS = (1 << (LOGN - LOGPOINTS));
 
   unsigned index = (row & (STEPS - 1)) * 8;
@@ -37,7 +37,7 @@ void bitreverse_out(const unsigned N, float2 *bitrev_outA, float2 *bitrev_outB, 
   rotate_out[7] = bitrev_outB[(7 * N / 8) + index_out];
 }
 
-float2x8 readBuf(const unsigned N, float2 buf[DEPTH][POINTS], float2 *bitrev_outA, float2 *bitrev_outB, unsigned step){
+float2x8 readBuf(float2 buf[DEPTH][POINTS], float2 bitrev_outA[N], float2 bitrev_outB[N], unsigned step){
   const unsigned DELAY = (1 << (LOGN - LOGPOINTS)); // N / 8
 
   unsigned rows = (step + DELAY);
@@ -55,22 +55,21 @@ float2x8 readBuf(const unsigned N, float2 buf[DEPTH][POINTS], float2 *bitrev_out
   }
 
   unsigned start_row = (step + DELAY) & (DEPTH -1);
-  bitreverse_out(N, bitrev_outA, bitrev_outB, rotate_out, rot_bitrev_out, start_row);
+  bitreverse_out(bitrev_outA, bitrev_outB, rotate_out, rot_bitrev_out, start_row);
 
-  unsigned rot_out = 0;
-  data.i0 = rot_bitrev_out[(0 + rot_out) & (POINTS - 1)];
-  data.i1 = rot_bitrev_out[(1 + rot_out) & (POINTS - 1)];
-  data.i2 = rot_bitrev_out[(2 + rot_out) & (POINTS - 1)];
-  data.i3 = rot_bitrev_out[(3 + rot_out) & (POINTS - 1)];
-  data.i4 = rot_bitrev_out[(4 + rot_out) & (POINTS - 1)];
-  data.i5 = rot_bitrev_out[(5 + rot_out) & (POINTS - 1)];
-  data.i6 = rot_bitrev_out[(6 + rot_out) & (POINTS - 1)];
-  data.i7 = rot_bitrev_out[(7 + rot_out) & (POINTS - 1)];
+  data.i0 = rot_bitrev_out[0];
+  data.i1 = rot_bitrev_out[1];
+  data.i2 = rot_bitrev_out[2];
+  data.i3 = rot_bitrev_out[3];
+  data.i4 = rot_bitrev_out[4];
+  data.i5 = rot_bitrev_out[5];
+  data.i6 = rot_bitrev_out[6];
+  data.i7 = rot_bitrev_out[7];
 
   return data;
 }
 
-void bitreverse_in(const unsigned N, float2 *bitrev_inA, float2 *bitrev_inB, float2x8 rotate_in, float2 rotate_out[POINTS], unsigned row){
+void bitreverse_in(float2 bitrev_inA[N], float2 bitrev_inB[N], float2x8 rotate_in, float2 rotate_out[POINTS], unsigned row){
 
   const unsigned STEPS = (N / 8);
   int index = row & (STEPS - 1); // [0, N/8 - 1]
@@ -96,13 +95,13 @@ void bitreverse_in(const unsigned N, float2 *bitrev_inA, float2 *bitrev_inB, flo
   rotate_out[7] = bitrev_inB[index_out + 7];
 }
 
-void writeBuf(float2x8 data, const unsigned N, float2 buf[DEPTH][POINTS], float2 *bitrev_inA, float2 *bitrev_inB, int step){
+void writeBuf(float2x8 data, float2 buf[DEPTH][POINTS], float2 bitrev_inA[N], float2 bitrev_inB[N], int step){
 
   const unsigned DELAY = (1 << (LOGN - LOGPOINTS)); // N / 8
   unsigned row = step & (DEPTH - 1);
   float2 rot_bitrev_in[POINTS];
 
-  bitreverse_in(N, bitrev_inA, bitrev_inB, data, rot_bitrev_in, row);
+  bitreverse_in(bitrev_inA, bitrev_inB, data, rot_bitrev_in, row);
 
   unsigned rot = ((step + DELAY) >> (LOGN - LOGPOINTS)) & (POINTS - 1);
   unsigned row_in = (step + DELAY) & (DEPTH - 1); 

@@ -15,7 +15,6 @@ channel float2 chanoutTranspose[8] __attribute__((depth(8)));
 
 __attribute__((max_global_work_dim(0)))
 kernel void fetch(global const volatile float2 * restrict src, int batch) {
-  const unsigned N = (1 << LOGN);
   const unsigned STEPS = (1 << (LOGN - LOGPOINTS)); // N / 8
 
   for(unsigned k = 0; k < (batch * N); k++){ 
@@ -60,7 +59,6 @@ kernel void fetch(global const volatile float2 * restrict src, int batch) {
 */
 __attribute__((max_global_work_dim(0)))
 kernel void transpose(int batch) {
-  const int N = (1 << LOGN);
   const int DELAY = (1 << (LOGN - LOGPOINTS)); // N / 8
   bool is_bufA = false, is_bitrevA = false;
 
@@ -95,13 +93,13 @@ kernel void transpose(int batch) {
     // Swap bitrev buffers every N/8 iterations
     is_bitrevA = ( (step & ((N / 8) - 1)) == 0) ? !is_bitrevA: is_bitrevA;
 
-    data_out = readBuf(N,
+    data_out = readBuf(
       is_bufA ? buf[1] : buf[0], 
       is_bitrevA ? bitrev_out[0] : bitrev_out[1],
       is_bitrevA ? bitrev_out[1] : bitrev_out[0],
       step);
 
-    writeBuf(data, N, 
+    writeBuf(data,  
       is_bufA ? buf[0] : buf[1],
       is_bitrevA ? bitrev_in[0] : bitrev_in[1],
       is_bitrevA ? bitrev_in[1] : bitrev_in[0],
@@ -122,7 +120,6 @@ kernel void transpose(int batch) {
 
 __attribute__((max_global_work_dim(0)))
 kernel void store(global float2 * restrict dest, int batch) {
-  const int N = (1 << LOGN);
   const unsigned STEPS = (1 << (LOGN - LOGPOINTS)); // N / 8
 
   for(unsigned i = 0; i < batch; i++){
