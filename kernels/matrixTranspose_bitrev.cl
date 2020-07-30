@@ -13,7 +13,6 @@
 channel float2 chaninTranspose[8] __attribute__((depth(8)));
 channel float2 chanoutTranspose[8] __attribute__((depth(8)));
 
-/*
 __attribute__((max_global_work_dim(0)))
 kernel void fetch(global const volatile float2 * restrict src, int batch) {
   const unsigned N = (1 << LOGN);
@@ -37,12 +36,11 @@ kernel void fetch(global const volatile float2 * restrict src, int batch) {
       write_channel_intel(chaninTranspose[6], buf[(3 * (N / 8)) + j]);   // 24
       write_channel_intel(chaninTranspose[7], buf[(7 * (N / 8)) + j]);   // 54
     }
-    //printf("%d ", k);
   }
 
-  //printf("\nFinished Fetch\n");
 }
-*/
+
+/*
 __attribute__((max_global_work_dim(0)))
 kernel void fetch(global const volatile float2 * restrict src, int batch) {
   const unsigned N = (1 << LOGN);
@@ -59,7 +57,7 @@ kernel void fetch(global const volatile float2 * restrict src, int batch) {
     write_channel_intel(chaninTranspose[7], src[(i * 8) + 7]);
   }
 }
-
+*/
 __attribute__((max_global_work_dim(0)))
 kernel void transpose(int batch) {
   const int N = (1 << LOGN);
@@ -122,19 +120,16 @@ kernel void transpose(int batch) {
   }
 }
 
-/*
 __attribute__((max_global_work_dim(0)))
 kernel void store(global float2 * restrict dest, int batch) {
   const int N = (1 << LOGN);
   const unsigned STEPS = (1 << (LOGN - LOGPOINTS)); // N / 8
 
   for(unsigned i = 0; i < batch; i++){
-    //printf("%d ", i);
     for(unsigned j = 0; j < N; j++){
 
       float2 buf[N];
       for(unsigned k = 0; k < STEPS; k++){
-
         buf[k] = read_channel_intel(chanoutTranspose[0]);
         buf[4 * N / 8 + k] = read_channel_intel(chanoutTranspose[1]);
         buf[2 * N / 8 + k] = read_channel_intel(chanoutTranspose[2]);
@@ -143,7 +138,6 @@ kernel void store(global float2 * restrict dest, int batch) {
         buf[5 * N / 8 + k] = read_channel_intel(chanoutTranspose[5]);
         buf[3 * N / 8 + k] = read_channel_intel(chanoutTranspose[6]);
         buf[7 * N / 8 + k] = read_channel_intel(chanoutTranspose[7]);
-
       }
 
       for(unsigned k = 0; k < STEPS; k++){
@@ -157,10 +151,8 @@ kernel void store(global float2 * restrict dest, int batch) {
       
     }
   }
-  //printf("\nFinished Store\n");
-
 }
-*/
+/*
 __attribute__((max_global_work_dim(0)))
 kernel void store(global float2 * restrict dest, int batch) {
   const int N = (1 << LOGN);
@@ -176,3 +168,4 @@ kernel void store(global float2 * restrict dest, int batch) {
     dest[(i * 8) + 7] = read_channel_intel(chanoutTranspose[7]);
   }
 }
+*/
