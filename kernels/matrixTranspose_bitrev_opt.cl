@@ -7,11 +7,11 @@
 */
 
 #include "mtrans_config.h"
-#include "diagonal_opt_bitrev.cl" 
+#include "diagonal_bitrev.cl" 
 
 #pragma OPENCL EXTENSION cl_intel_channels : enable
-channel float2 chaninTranspose[8] __attribute__((depth(8)));
-channel float2 chanoutTranspose[8] __attribute__((depth(8)));
+channel float2 chaninTranspose[POINTS] __attribute__((depth(POINTS)));
+channel float2 chanoutTranspose[POINTS] __attribute__((depth(POINTS)));
 
 __attribute__((max_global_work_dim(0)))
 kernel void fetch(global const volatile float2 * restrict src, int batch) {
@@ -64,17 +64,25 @@ kernel void transpose(int batch) {
     // Swap bitrev buffers every N/8 iterations
     is_bitrevA = ( (step & ((N / 8) - 1)) == 0) ? !is_bitrevA: is_bitrevA;
 
-    data_out = readBuf(
-      is_bufA ? buf[1] : buf[0], 
-      is_bitrevA ? bitrev_out[0] : bitrev_out[1],
-      is_bitrevA ? bitrev_out[1] : bitrev_out[0],
+    unsigned row = step & (DEPTH - 1);
+    data = bitreverse_in(data,
+      is_bitrevA ? bitrev_in[0] : bitrev_in[1], 
+      is_bitrevA ? bitrev_in[1] : bitrev_in[0], 
+      row);
+
+    writeBuf(data,
+      is_bufA ? buf[0] : buf[1],
       step);
 
-    writeBuf(data,  
-      is_bufA ? buf[0] : buf[1],
-      is_bitrevA ? bitrev_in[0] : bitrev_in[1],
-      is_bitrevA ? bitrev_in[1] : bitrev_in[0],
+    data_out = readBuf(
+      is_bufA ? buf[1] : buf[0], 
       step);
+
+    unsigned start_row = (step + DELAY) & (DEPTH -1);
+    data_out = bitreverse_out(
+      is_bitrevA ? bitrev_out[0] : bitrev_out[1],
+      is_bitrevA ? bitrev_out[1] : bitrev_out[0],
+      data_out, start_row);
 
     if (step >= (DEPTH)) {
       write_channel_intel(chanoutTranspose[0], data_out.i0);
