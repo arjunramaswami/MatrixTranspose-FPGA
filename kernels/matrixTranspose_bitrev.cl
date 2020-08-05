@@ -7,7 +7,7 @@
 */
 
 #include "mtrans_config.h"
-#include "diagonal_bitrev.cl" 
+#include "diagonal_bitrevin.cl" 
 
 #pragma OPENCL EXTENSION cl_intel_channels : enable
 channel float2 chaninTranspose[8] __attribute__((depth(8)));
@@ -15,29 +15,52 @@ channel float2 chanoutTranspose[8] __attribute__((depth(8)));
 
 __attribute__((max_global_work_dim(0)))
 kernel void fetch(global const volatile float2 * restrict src, int batch) {
-  const unsigned STEPS = (1 << (LOGN - LOGPOINTS)); // N / 8
+  unsigned delay = (1 << (LOGN - LOGPOINTS)); // N / 8
+  bool is_bitrevA = false;
 
-  for(unsigned k = 0; k < (batch * N); k++){ 
-    float2 buf[N];
+  float2 __attribute__((memory, numbanks(8))) buf[2][N];
+  
+  // additional iterations to fill the buffers
+  for(unsigned step = 0; step < (batch * DEPTH) + delay; step++){
 
-    #pragma unroll POINTS
-    for(unsigned i = 0; i < N; i++){
-      buf[i & ((1<<LOGN)-1)] = src[(k << LOGN) + i];    
+    unsigned where = (step & ((batch * DEPTH) - 1)) * 8; 
+
+    float2x8 data;
+    if (step < (batch * DEPTH)) {
+      data.i0 = src[where + 0];
+      data.i1 = src[where + 1];
+      data.i2 = src[where + 2];
+      data.i3 = src[where + 3];
+      data.i4 = src[where + 4];
+      data.i5 = src[where + 5];
+      data.i6 = src[where + 6];
+      data.i7 = src[where + 7];
+    } else {
+      data.i0 = data.i1 = data.i2 = data.i3 = 
+                data.i4 = data.i5 = data.i6 = data.i7 = 0;
     }
 
-    for(unsigned j = 0; j < STEPS; j++){
-      write_channel_intel(chaninTranspose[0], buf[j]);               // 0
-      write_channel_intel(chaninTranspose[1], buf[(4 * (N / 8)) + j]);   // 32
-      write_channel_intel(chaninTranspose[2], buf[(2 * (N / 8)) + j]);   // 16
-      write_channel_intel(chaninTranspose[3], buf[(6 * (N / 8)) + j]);   // 48
-      write_channel_intel(chaninTranspose[4], buf[(N / 8) + j]);       // 8
-      write_channel_intel(chaninTranspose[5], buf[(5 * (N / 8)) + j]);   // 40
-      write_channel_intel(chaninTranspose[6], buf[(3 * (N / 8)) + j]);   // 24
-      write_channel_intel(chaninTranspose[7], buf[(7 * (N / 8)) + j]);   // 54
+    is_bitrevA = ( (step & ((N / 8) - 1)) == 0) ? !is_bitrevA: is_bitrevA;
+
+    unsigned row = step & (DEPTH - 1);
+    data = bitreverse_fetch(data,
+      is_bitrevA ? buf[0] : buf[1], 
+      is_bitrevA ? buf[1] : buf[0], 
+      row);
+
+    if (step >= delay) {
+      write_channel_intel(chaninTranspose[0], data.i0);
+      write_channel_intel(chaninTranspose[1], data.i1);
+      write_channel_intel(chaninTranspose[2], data.i2);
+      write_channel_intel(chaninTranspose[3], data.i3);
+      write_channel_intel(chaninTranspose[4], data.i4);
+      write_channel_intel(chaninTranspose[5], data.i5);
+      write_channel_intel(chaninTranspose[6], data.i6);
+      write_channel_intel(chaninTranspose[7], data.i7);
     }
   }
-
 }
+
 /*
 __attribute__((max_global_work_dim(0)))
 kernel void fetch(global const volatile float2 * restrict src, int batch) {
@@ -56,7 +79,7 @@ kernel void fetch(global const volatile float2 * restrict src, int batch) {
 */
 __attribute__((max_global_work_dim(0)))
 kernel void transpose(int batch) {
-  const int DELAY = (1 << (LOGN - LOGPOINTS)); // N / 8
+  unsigned delay = (1 << (LOGN - LOGPOINTS)); // N / 8
   bool is_bufA = false, is_bitrevA = false;
 
   float2 buf[2][DEPTH][POINTS];
@@ -64,7 +87,7 @@ kernel void transpose(int batch) {
   float2 bitrev_in[2][N];
   float2 __attribute__((memory, numbanks(8))) bitrev_out[2][N];
   
-  int initial_delay = DELAY + DELAY; // for each of the bitrev buffer
+  int initial_delay = delay + delay; // for each of the bitrev buffer
 
   // additional iterations to fill the buffers
   for(int step = -initial_delay; step < ((batch * DEPTH) + DEPTH); step++){
@@ -86,7 +109,7 @@ kernel void transpose(int batch) {
 
     // Swap buffers every N*N/8 iterations 
     // starting from the additional delay of N/8 iterations
-    is_bufA = (( (step + DELAY) & (DEPTH - 1)) == 0) ? !is_bufA: is_bufA;
+    is_bufA = (( (step + delay) & (DEPTH - 1)) == 0) ? !is_bufA: is_bufA;
 
     // Swap bitrev buffers every N/8 iterations
     is_bitrevA = ( (step & ((N / 8) - 1)) == 0) ? !is_bitrevA: is_bitrevA;
@@ -99,13 +122,13 @@ kernel void transpose(int batch) {
 
     writeBuf(data,
       is_bufA ? buf[0] : buf[1],
-      step);
+      step, delay);
 
     data_out = readBuf(
       is_bufA ? buf[1] : buf[0], 
       step);
 
-    unsigned start_row = (step + DELAY) & (DEPTH -1);
+    unsigned start_row = (step + delay) & (DEPTH -1);
     data_out = bitreverse_out(
       is_bitrevA ? bitrev_out[0] : bitrev_out[1],
       is_bitrevA ? bitrev_out[1] : bitrev_out[0],
