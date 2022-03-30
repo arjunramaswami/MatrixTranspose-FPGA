@@ -7,18 +7,11 @@
 
 #include "mtrans_config.h"
 
-// Log of the number of replications of the pipeline
-#define LOGREPL 2            // 4 replications 
-#define REPL (1 << LOGREPL)  // 4 replications 
-#define UNROLL_FACTOR 8 
-
 #pragma OPENCL EXTENSION cl_intel_channels : enable
-channel float2 chaninTranspose[8] __attribute__((depth(8)));
-channel float2 chanoutTranspose[8] __attribute__((depth(8)));
+channel float2 chaninTranspose[8] __attribute__((depth(POINTS)));
+channel float2 chanoutTranspose[8] __attribute__((depth(POINTS)));
 
-__attribute__((max_global_work_dim(0)))
 kernel void fetch(global const volatile float2 * restrict src, int batch) {
-  const unsigned N = (1 << LOGN);
 
   for(unsigned i = 0; i < (batch * N * (N / 8)); i++){
 
@@ -33,9 +26,7 @@ kernel void fetch(global const volatile float2 * restrict src, int batch) {
   }
 }
 
-__attribute__((max_global_work_dim(0)))
 kernel void transpose(int iter) {
-  const unsigned N = (1 << LOGN);
 
   local float2 buf[N][N];  // buf[N][N] banked on column 
 
@@ -76,9 +67,7 @@ kernel void transpose(int iter) {
 
 }
 
-__attribute__((max_global_work_dim(0)))
 kernel void store(global float2 * restrict dest, int batch) {
-  const int N = (1 << LOGN);
 
   for(unsigned i = 0; i < (batch * N * (N / 8)); i++){
     dest[(i * 8) + 0] = read_channel_intel(chanoutTranspose[0]);

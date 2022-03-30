@@ -12,7 +12,7 @@ typedef struct {
 } float2x8;
 
 float2x8 readBuf(float2 bufA[DEPTH][POINTS], unsigned step){
-  const unsigned N = (1 << LOGN);
+  // const unsigned N = (1 << LOGN);
   unsigned base = (step & (N / POINTS - 1)) << LOGN; // 0, N, 2N, ...
   unsigned offset = (step >> LOGN) & ((N / 8) - 1);  // 0, .. N / POINTS
   float2 rotate_out[POINTS];
@@ -39,7 +39,7 @@ float2x8 readBuf(float2 bufA[DEPTH][POINTS], unsigned step){
 }
 
 void writeBuf(float2 data[POINTS], float2 bufA[DEPTH][POINTS], unsigned step){
-  const unsigned N = (1 << LOGN);
+  // const unsigned N = (1 << LOGN);
 
   unsigned row = step & (DEPTH - 1);
   unsigned rot = (row >> (LOGN - LOGPOINTS)) & (POINTS - 1);

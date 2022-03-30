@@ -13,9 +13,7 @@
 channel float2 chaninTranspose[POINTS] __attribute__((depth(POINTS)));
 channel float2 chanoutTranspose[POINTS] __attribute__((depth(POINTS)));
 
-__attribute__((max_global_work_dim(0)))
 kernel void fetch(global const volatile float2 * restrict src, int batch) {
-  const unsigned N = (1 << LOGN);
 
   for(unsigned i = 0; i < (batch * N * (N / 8)); i++){
 
@@ -32,7 +30,6 @@ kernel void fetch(global const volatile float2 * restrict src, int batch) {
 
 __attribute__((max_global_work_dim(0)))
 kernel void transpose(int batch) {
-  const unsigned N = (1 << LOGN);
   bool is_bufA = false;
 
   float2 bufA[2][DEPTH][POINTS];
@@ -78,7 +75,6 @@ kernel void transpose(int batch) {
 
 __attribute__((max_global_work_dim(0)))
 kernel void store(global float2 * restrict dest, int batch) {
-  const unsigned N = (1 << LOGN);
 
   for(unsigned i = 0; i < (batch * N * (N / 8)); i++){
     dest[(i * 8) + 0] = read_channel_intel(chanoutTranspose[0]);
