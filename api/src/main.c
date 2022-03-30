@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-
+#include <stdbool.h>
 #include "CL/opencl.h"
 
 #include "argparse.h"
@@ -20,6 +20,7 @@ int main(int argc, const char **argv) {
   int N = 64, batch = 0, isND = 0;
   char *path;
   int use_svm = 0, use_emulator = 0;
+  bool bitreverse = false;
 
   const char *platform = "Intel(R) FPGA";
 
@@ -32,7 +33,7 @@ int main(int argc, const char **argv) {
     OPT_INTEGER('b',"b", &batch, "Number of batched executions"),
     OPT_BOOLEAN('v',"svm", &use_svm, "Use SVM"),
     OPT_STRING('p', "path", &path, "Path to bitstream"),
-    OPT_BOOLEAN('d', "ndrange", &isND, "Is kernel ND range?"),
+    OPT_BOOLEAN('r', "bitreverse", &bitreverse, "Bitreverse i/o"),
     OPT_END(),
   };
 
@@ -53,7 +54,7 @@ int main(int argc, const char **argv) {
   float2 *verify = (float2*)fpgaf_complex_malloc(inp_sz, use_svm);
   float2 *out = (float2*)fpgaf_complex_malloc(inp_sz, use_svm);
 
-  get_input_data(inp, verify, N, batch);
+  get_input_data(inp, verify, N, batch, bitreverse);
 
   printf("Transposing Matrix\n");
   timing = mTranspose(N, inp, out, batch, use_svm, isND);
@@ -62,7 +63,7 @@ int main(int argc, const char **argv) {
   cpu_mTranspose(verify, N, batch);
 
   printf("\nChecking Correctness\n");
-  verify_mTranspose(out, verify, N, batch);
+  verify_mTranspose(out, verify, N, batch, bitreverse);
 
   // destroy data
   fpga_final();

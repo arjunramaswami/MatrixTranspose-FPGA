@@ -7,6 +7,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include <math.h>
+#include <stdbool.h>
 #define _USE_MATH_DEFINES
 
 #include "transpose_fpga.h"
@@ -16,24 +17,66 @@
  * \param  transpose_data: pointer to square matrix of size N * N 
  * \param  cpu_transpose_data: pointer to square matrix of size N * N that has the same data as the input matrix
  * \param  N: length of square matrix
- * \param  iter: number of iterations of square matrix of size N*N
+ * \param  batch: number of iteration of square matrix of size N*N
  */
-void get_input_data(float2 *transpose_data, float2 *cpu_transpose_data, unsigned N, unsigned iter){
+void get_input_data(float2 *transpose_data, float2 *cpu_transpose_data, unsigned N, unsigned batch, bool bitreverse){
 
   // Else randomly generate values and write to a file 
   printf("Creating data \n");
-  for (size_t j = 0; j < iter; j++){
+  for (size_t j = 0; j < batch; j++){
     for (size_t i = 0; i < (N * N); i++) {
       unsigned disp = j * N * N;
       cpu_transpose_data[disp + i].x = transpose_data[disp + i].x = (float)i;
       cpu_transpose_data[disp + i].y = transpose_data[disp + i].y = (float)i;
     }
   }
-  /*
-  for (size_t i = 0; i < iter * (N * N); i++) {
-    printf(" %d : transpose[%d] = (%f, %f)\n", i, i, transpose_data[i].x, transpose_data[i].y);
+
+  if(bitreverse){
+    float2 *temp = (float2 *)malloc(sizeof(float2) * batch * N * N);
+
+    for(size_t i = 0; i < batch; i++){
+
+      for(size_t j = 0; j < N; j++){
+
+        size_t pos_in = (i * N * N) + (j * N);
+
+        for(size_t k = 0; k < (N / 8); k++){
+          size_t pos_out = pos_in + (k * 8);
+
+          temp[pos_in + k].x = transpose_data[pos_out + 0].x;
+          temp[pos_in + (4 * N / 8) + k].x = transpose_data[pos_out + 1].x;
+          temp[pos_in + (2 * N / 8) + k].x = transpose_data[pos_out + 2].x;
+          temp[pos_in + (6 * N / 8) + k].x = transpose_data[pos_out + 3].x;
+          temp[pos_in + (N / 8) + k].x = transpose_data[pos_out + 4].x;
+          temp[pos_in + (5 * N / 8) + k].x = transpose_data[pos_out + 5].x;
+          temp[pos_in + (3 * N / 8) + k].x = transpose_data[pos_out + 6].x;
+          temp[pos_in + (7 * N / 8) + k].x = transpose_data[pos_out + 7].x;
+
+          temp[pos_in + k].y = transpose_data[pos_out + 0].y;
+          temp[pos_in + (4 * N / 8) + k].y = transpose_data[pos_out + 1].y;
+          temp[pos_in + (2 * N / 8) + k].y = transpose_data[pos_out + 2].y;
+          temp[pos_in + (6 * N / 8) + k].y = transpose_data[pos_out + 3].y;
+          temp[pos_in + (N / 8) + k].y = transpose_data[pos_out + 4].y;
+          temp[pos_in + (5 * N / 8) + k].y = transpose_data[pos_out + 5].y;
+          temp[pos_in + (3 * N / 8) + k].y = transpose_data[pos_out + 6].y;
+          temp[pos_in + (7 * N / 8) + k].y = transpose_data[pos_out + 7].y;
+        }
+      }
+    }
+
+    for(size_t i = 0; i < batch * N * N; i++){
+      transpose_data[i].x = temp[i].x;
+      transpose_data[i].y = temp[i].y;
+    }
+    free(temp);
+  } // bitreverse out
+
+  /* 
+  for (size_t i = 0; i < batch * (N * N); i++) {
+    printf(" %lu : transpose[%lu] = (%f, %f)\n", i, i, transpose_data[i].x, transpose_data[i].y);
   }
   */
+  
 }
 
 /*
@@ -82,8 +125,48 @@ void cpu_mTranspose(float2 *verify_data, int N, unsigned batch){
  * \param  N: length of square matrix
  * \param  batch: number of batched transposes
  */
-void verify_mTranspose(float2 *fpga_out, float2 *cpu_out, int N, int batch){
+void verify_mTranspose(float2 *fpga_out, float2 *cpu_out, int N, int batch, bool bitreverse){
   float mag_sum = 0, noise_sum = 0;
+
+  if(bitreverse){
+    float2 *temp = (float2 *)malloc(sizeof(float2) * batch * N * N);
+
+    for(size_t i = 0; i < batch; i++){
+
+      for(size_t j = 0; j < N; j++){
+
+        size_t pos_in = (i * N * N) + (j * N);
+
+        for(size_t k = 0; k < (N / 8); k++){
+          size_t pos_out = pos_in + (k * 8);
+
+          temp[pos_in + k].x = fpga_out[pos_out + 0].x;
+          temp[pos_in + (4 * N / 8) + k].x = fpga_out[pos_out + 1].x;
+          temp[pos_in + (2 * N / 8) + k].x = fpga_out[pos_out + 2].x;
+          temp[pos_in + (6 * N / 8) + k].x = fpga_out[pos_out + 3].x;
+          temp[pos_in + (N / 8) + k].x = fpga_out[pos_out + 4].x;
+          temp[pos_in + (5 * N / 8) + k].x = fpga_out[pos_out + 5].x;
+          temp[pos_in + (3 * N / 8) + k].x = fpga_out[pos_out + 6].x;
+          temp[pos_in + (7 * N / 8) + k].x = fpga_out[pos_out + 7].x;
+
+          temp[pos_in + k].y = fpga_out[pos_out + 0].y;
+          temp[pos_in + (4 * N / 8) + k].y = fpga_out[pos_out + 1].y;
+          temp[pos_in + (2 * N / 8) + k].y = fpga_out[pos_out + 2].y;
+          temp[pos_in + (6 * N / 8) + k].y = fpga_out[pos_out + 3].y;
+          temp[pos_in + (N / 8) + k].y = fpga_out[pos_out + 4].y;
+          temp[pos_in + (5 * N / 8) + k].y = fpga_out[pos_out + 5].y;
+          temp[pos_in + (3 * N / 8) + k].y = fpga_out[pos_out + 6].y;
+          temp[pos_in + (7 * N / 8) + k].y = fpga_out[pos_out + 7].y;
+        }
+      }
+    }
+
+    for(size_t i = 0; i < batch * N * N; i++){
+      fpga_out[i].x = temp[i].x;
+      fpga_out[i].y = temp[i].y;
+    }
+    free(temp);
+  } // bitreverse out
 
   for (size_t i = 0; i < batch * N * N; i++){
     float magnitude = cpu_out[i].x * cpu_out[i].x + \
